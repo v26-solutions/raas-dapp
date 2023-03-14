@@ -36,6 +36,24 @@ pub mod common {
     #[derive(Debug, Clone, PartialEq)]
     pub struct Id(String);
 
+    impl From<String> for Id {
+        fn from(value: String) -> Self {
+            Id(value)
+        }
+    }
+
+    impl AsRef<str> for Id {
+        fn as_ref(&self) -> &str {
+            &self.0
+        }
+    }
+
+    impl AsRef<String> for Id {
+        fn as_ref(&self) -> &String {
+            &self.0
+        }
+    }
+
     #[derive(Debug, Clone, Copy)]
     pub struct NonZeroPercent(u8);
 
@@ -47,6 +65,11 @@ pub mod common {
             }
 
             Some(NonZeroPercent(percent))
+        }
+
+        #[must_use]
+        pub const fn to_u8(self) -> u8 {
+            self.0
         }
 
         /// Apply the percentage to a give amount, will return `None` if an overflow occurs
@@ -90,7 +113,7 @@ pub mod dapp {
         /// # Errors
         ///
         /// This function will return an error depending on the implementor.
-        fn remove_dapp(&self, id: &Id) -> Result<(), Self::Error>;
+        fn remove_dapp(&mut self, id: &Id) -> Result<(), Self::Error>;
 
         /// Sets the percentage of a dApp's fee to give to the referrer
         ///
@@ -293,6 +316,17 @@ pub mod referral {
     impl Code {
         fn next(self) -> Code {
             Code(self.0 + 1)
+        }
+
+        #[must_use]
+        pub fn to_u64(self) -> u64 {
+            self.0
+        }
+    }
+
+    impl From<u64> for Code {
+        fn from(value: u64) -> Self {
+            Self(value)
         }
     }
 
@@ -513,10 +547,7 @@ pub mod referral {
 pub mod collect {
     use std::num::NonZeroU128;
 
-    use crate::{
-        dapp::Store as DappStore, referral::Store as ReferralStore, Command, Error, Id,
-        ReferralCode,
-    };
+    use crate::{referral::Store as ReferralStore, Command, DappStore, Error, Id, ReferralCode};
 
     pub trait Store: crate::FallibleApi {
         /// Sets the total collected earnings for a referral code.
@@ -694,6 +725,10 @@ pub use common::*;
 pub use dapp::Metadata as DappMetadata;
 pub use referral::Code as ReferralCode;
 
+pub use collect::Store as CollectStore;
+pub use dapp::Store as DappStore;
+pub use referral::Store as ReferralStore;
+
 pub enum Registration {
     /// Register for a referral code
     Referrer,
@@ -801,11 +836,9 @@ where
         },
 
         MsgKind::Config(configure) => match configure {
-            Configure::TransferReferralCodeOwnership {
-                code,
-                owner: collector,
-            } => referral::transfer_ownership(api, &msg.sender, code, collector)
-                .map(|_| Reply::Empty),
+            Configure::TransferReferralCodeOwnership { code, owner } => {
+                referral::transfer_ownership(api, &msg.sender, code, owner).map(|_| Reply::Empty)
+            }
             Configure::DappMetadata { dapp, metadata } => {
                 dapp::configure(api, &msg.sender, &dapp, metadata).map(|_| Reply::Empty)
             }

@@ -1,0 +1,16 @@
+[package]
+name = "referrals-storage"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "storage.rs"
+test = false
+doctest = false
+
+[dependencies]
+thiserror.workspace = true
+
+referrals-core = { path = "../core" }
+
+kv-storage = { git = "https://github.com/v26-solutions/kv-storage" }
