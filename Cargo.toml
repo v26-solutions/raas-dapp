@@ -1,5 +1,8 @@
 [workspace]
-members = [ "crates/*", "test" ]
+members = [ "crates/*", "crates/cosmwasm/*","test" ]
 
 [workspace.dependencies]
 thiserror = "1.0.38"
+
+cosmwasm-schema = "1.2.2"
+cosmwasm-std = "1.2.2"

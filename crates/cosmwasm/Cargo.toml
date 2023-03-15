@@ -1,0 +1,12 @@
+[package]
+name = "referrals-cw"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "referrals-cw.rs"
+test = false
+doctest = false
+
+[dependencies]
+cosmwasm-schema.workspace = true
