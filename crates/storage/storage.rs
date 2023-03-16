@@ -7,7 +7,7 @@ use referrals_core::{
     CollectStore, DappStore, FallibleApi, Id, NonZeroPercent, ReferralCode, ReferralStore,
 };
 
-use kv_storage::{item, map, Item, Map, Storage as KvStorage};
+use kv_storage::{item, map, Item, Map, MutStorage as MutKvStorage};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<S> {
@@ -27,7 +27,7 @@ impl<T> Storage<T> {
 
 impl<T> FallibleApi for Storage<T>
 where
-    T: KvStorage,
+    T: MutKvStorage,
 {
     type Error = Error<T::Error>;
 }
@@ -44,7 +44,7 @@ static DAPP_REWARDS_POT: Map<1024, &str, String> = map!("dapp_rewards_pot");
 
 impl<T> DappStore for Storage<T>
 where
-    T: KvStorage,
+    T: MutKvStorage,
 {
     fn dapp_exists(&self, id: &Id) -> Result<bool, Self::Error> {
         DAPPS.has_key(&self.0, &id.as_ref()).map_err(Error::from)
@@ -93,6 +93,12 @@ where
             .map_err(Error::from)
     }
 
+    fn has_rewards_pot(&mut self, id: &Id) -> Result<bool, Self::Error> {
+        DAPP_REWARDS_POT
+            .has_key(&self.0, &id.as_ref())
+            .map_err(Error::from)
+    }
+
     fn rewards_pot(&self, id: &Id) -> Result<Id, Self::Error> {
         DAPP_COLLECTOR
             .may_load(&self.0, &id.as_ref())?
@@ -117,7 +123,7 @@ static DAPP_CONTRIBUTIONS: Map<1024, &str, NonZeroU128> = map!("dapp_contributio
 
 impl<T> ReferralStore for Storage<T>
 where
-    T: KvStorage,
+    T: MutKvStorage,
 {
     fn code_exists(&self, code: ReferralCode) -> Result<bool, Self::Error> {
         CODES.has_key(&self.0, &code.to_u64()).map_err(Error::from)
@@ -228,7 +234,7 @@ static DAPP_TOTAL_COLLECTED: Map<1024, &str, NonZeroU128> = map!("dapp_total_col
 
 impl<T> CollectStore for Storage<T>
 where
-    T: KvStorage,
+    T: MutKvStorage,
 {
     fn set_referrer_total_collected(
         &mut self,

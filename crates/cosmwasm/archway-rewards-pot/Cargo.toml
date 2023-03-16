@@ -1,0 +1,21 @@
+[package]
+name = "archway-rewards-pot"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "driver.rs"
+test = false
+doctest = false
+
+[dependencies]
+thiserror.workspace = true
+kv-storage.workspace = true
+kv-storage-bincode.workspace = true
+kv-storage-cosmwasm.workspace = true
+cosmwasm-std.workspace = true
+archway-bindings.workspace = true
+
+referrals-core.workspace = true
+referrals-storage.workspace = true
+referrals-cw.workspace = true

@@ -1,14 +1,17 @@
 [package]
-name = "referrals-storage"
+name = "referrals-parse-cw"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-path = "storage.rs"
+path = "parse-cw.rs"
 test = false
 doctest = false
 
 [dependencies]
 thiserror.workspace = true
+cosmwasm-std.workspace = true
 referrals-core.workspace = true
-kv-storage.workspace = true
+referrals-cw.workspace = true
+
+cw-utils = "1.0.1"

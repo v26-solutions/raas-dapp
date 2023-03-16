@@ -1,7 +1,13 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic)]
+
+#[path = "rewards-pot-cw.rs"]
+pub mod rewards_pot;
+
 #[cosmwasm_schema::cw_serde]
 pub struct InstantiateMsg {
     /// Rewards pot contract code ID
-    rewards_pot_code_id: u64,
+    pub rewards_pot_code_id: u64,
 }
 
 #[cosmwasm_schema::cw_serde]

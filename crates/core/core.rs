@@ -20,6 +20,8 @@ pub enum Error<Api> {
     InvalidRewardsAdmin,
     #[error("invalid rewards pot admin")]
     InvalidRewardsPotAdmin,
+    #[error("rewards pot already set")]
+    RewardsPotAlreadySet,
     #[error("math overflow")]
     Overflow,
     #[error("nothing to collect")]
@@ -36,9 +38,19 @@ pub mod common {
     #[derive(Debug, Clone, PartialEq)]
     pub struct Id(String);
 
-    impl From<String> for Id {
-        fn from(value: String) -> Self {
-            Id(value)
+    impl Id {
+        #[must_use]
+        pub fn into_string(self) -> String {
+            self.0
+        }
+    }
+
+    impl<T> From<T> for Id
+    where
+        T: Into<String>,
+    {
+        fn from(value: T) -> Self {
+            Id(value.into())
         }
     }
 
@@ -157,6 +169,13 @@ pub mod dapp {
         /// This function will return an error depending on the implementor.
         fn set_rewards_pot(&mut self, id: &Id, rewards_pot: Id) -> Result<(), Self::Error>;
 
+        /// Checks if the dApp with the given id has a rewards pot set
+        ///
+        /// # Errors
+        ///
+        /// This function will return an error depending on the implementor.
+        fn has_rewards_pot(&mut self, id: &Id) -> Result<bool, Self::Error>;
+
         /// Gets the Id of a dApp's rewards pot
         ///
         /// # Errors
@@ -205,30 +224,52 @@ pub mod dapp {
     /// - There is an API error.
     pub fn register<Api: Store + Query>(
         api: &mut Api,
-        sender: &Id,
+        sender: Id,
         percent: NonZeroPercent,
         collector: Id,
-        rewards_pot: Id,
     ) -> Result<Command, Error<Api::Error>> {
-        if api.dapp_exists(sender)? {
+        if api.dapp_exists(&sender)? {
             return Err(Error::AlreadyRegistered);
         }
 
-        let self_id = api.self_id()?;
-
-        if self_id != api.rewards_admin(sender)? {
+        if api.self_id()? != api.rewards_admin(&sender)? {
             return Err(Error::InvalidRewardsAdmin);
         }
 
-        if self_id != api.rewards_pot_admin(sender)? {
+        api.set_percent(&sender, percent)?;
+
+        api.set_collector(&sender, collector)?;
+
+        Ok(Command::CreateRewardsPot(sender))
+    }
+
+    /// Sets the rewards pot for a registered dapp
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The dApp is not registered.
+    /// - There is already a rewards pot set for the dApp
+    /// - Self ID is not the admin of the rewards pot
+    /// - There is an API error.
+    pub fn set_rewards_pot<Api: Store + Query>(
+        api: &mut Api,
+        dapp: &Id,
+        rewards_pot: Id,
+    ) -> Result<Command, Error<Api::Error>> {
+        if !api.dapp_exists(dapp)? {
+            return Err(Error::DappNotRegistered);
+        }
+
+        if !api.has_rewards_pot(dapp)? {
+            return Err(Error::RewardsPotAlreadySet);
+        }
+
+        if api.self_id()? != api.rewards_pot_admin(&rewards_pot)? {
             return Err(Error::InvalidRewardsPotAdmin);
         }
 
-        api.set_percent(sender, percent)?;
-
-        api.set_collector(sender, collector)?;
-
-        api.set_rewards_pot(sender, rewards_pot.clone())?;
+        api.set_rewards_pot(dapp, rewards_pot.clone())?;
 
         Ok(Command::SetRewardsRecipient(rewards_pot))
     }
@@ -636,7 +677,7 @@ pub mod collect {
         sender: Id,
         dapp: &Id,
         code: ReferralCode,
-    ) -> Result<Command, Error<Api::Error>> {
+    ) -> Result<[Command; 2], Error<Api::Error>> {
         let Some(referrer_owner) = api.owner_of(code)? else {
             return Err(Error::ReferralCodeNotRegistered);
         };
@@ -666,11 +707,16 @@ pub mod collect {
 
         api.set_referrer_dapp_collected(dapp, code, dapp_earnings)?;
 
-        Ok(Command::RedistributeRewards {
-            amount: owed,
-            pot: api.rewards_pot(dapp)?,
-            receiver: sender,
-        })
+        let pot = api.rewards_pot(dapp)?;
+
+        Ok([
+            Command::WithdrawPending(pot.clone()),
+            Command::RedistributeRewards {
+                amount: owed,
+                pot,
+                receiver: sender,
+            },
+        ])
     }
 
     /// Collect a dApp's remaining rewards.
@@ -685,7 +731,7 @@ pub mod collect {
         api: &mut Api,
         sender: Id,
         dapp: &Id,
-    ) -> Result<Command, Error<Api::Error>> {
+    ) -> Result<[Command; 2], Error<Api::Error>> {
         if &sender != dapp || sender != api.collector(dapp)? {
             return Err(Error::Unauthorized);
         }
@@ -713,11 +759,16 @@ pub mod collect {
 
         api.set_dapp_total_collected(dapp, total_remaining)?;
 
-        Ok(Command::RedistributeRewards {
-            amount: owed,
-            pot: api.rewards_pot(dapp)?,
-            receiver: sender,
-        })
+        let pot = api.rewards_pot(dapp)?;
+
+        Ok([
+            Command::WithdrawPending(pot.clone()),
+            Command::RedistributeRewards {
+                amount: owed,
+                pot,
+                receiver: sender,
+            },
+        ])
     }
 }
 
@@ -729,6 +780,9 @@ pub use collect::Store as CollectStore;
 pub use dapp::Store as DappStore;
 pub use referral::Store as ReferralStore;
 
+pub use collect::Query as CollectQuery;
+pub use dapp::Query as DappQuery;
+
 pub enum Registration {
     /// Register for a referral code
     Referrer,
@@ -736,8 +790,9 @@ pub enum Registration {
     Dapp {
         percent: NonZeroPercent,
         collector: Id,
-        rewards_pot: Id,
     },
+    /// Set the rewards pot for the given dApp
+    RewardsPot { dapp: Id, rewards_pot: Id },
     /// Dapp de-registration to stop taking referrals
     DeregisterDapp {
         dapp: Id,
@@ -774,6 +829,8 @@ pub struct Msg {
 }
 
 pub enum Command {
+    /// Create a rewards pot for the given dApp Id
+    CreateRewardsPot(Id),
     /// Set the given Id as the rewards recipient
     SetRewardsRecipient(Id),
     /// Set the given Id as the rewards admin
@@ -784,7 +841,7 @@ pub enum Command {
         pot: Id,
         receiver: Id,
     },
-    /// Withdraw pendings rewards for Id
+    /// Withdraw pending rewards for Id
     WithdrawPending(Id),
 }
 
@@ -811,11 +868,12 @@ where
     match msg.kind {
         MsgKind::Register(reg) => match reg {
             Registration::Referrer => referral::register(api, msg.sender).map(Reply::from),
-            Registration::Dapp {
-                percent,
-                collector,
-                rewards_pot,
-            } => dapp::register(api, &msg.sender, percent, collector, rewards_pot).map(Reply::from),
+            Registration::Dapp { percent, collector } => {
+                dapp::register(api, msg.sender, percent, collector).map(Reply::from)
+            }
+            Registration::RewardsPot { dapp, rewards_pot } => {
+                dapp::set_rewards_pot(api, &dapp, rewards_pot).map(Reply::from)
+            }
             Registration::DeregisterDapp {
                 dapp,
                 rewards_admin,
