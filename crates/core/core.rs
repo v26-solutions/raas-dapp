@@ -344,6 +344,31 @@ pub mod dapp {
 
         Ok(())
     }
+
+    /// Set a dApp's fee portion of rewards.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The dApp is not registered.
+    /// - The sender is not either the dApp or it's collector.
+    /// - There is an API error.
+    pub fn set_fee<Api: Store>(
+        api: &mut Api,
+        sender: &Id,
+        dapp: Id,
+        amount: NonZeroU128,
+    ) -> Result<Command, Error<Api::Error>> {
+        if !api.dapp_exists(&dapp)? {
+            return Err(Error::DappNotRegistered);
+        }
+
+        if sender != &dapp || sender != &api.collector(&dapp)? {
+            return Err(Error::Unauthorized);
+        }
+
+        Ok(Command::SetDappFee { dapp, amount })
+    }
 }
 
 pub mod referral {
@@ -811,6 +836,7 @@ pub enum Collection {
 pub enum Configure {
     TransferReferralCodeOwnership { code: ReferralCode, owner: Id },
     DappMetadata { dapp: Id, metadata: DappMetadata },
+    DappFee { dapp: Id, fee: NonZeroU128 },
 }
 
 pub enum MsgKind {
@@ -835,6 +861,8 @@ pub enum Command {
     SetRewardsRecipient(Id),
     /// Set the given Id as the rewards admin
     SetRewardsAdmin(Id),
+    /// Set the fee for the given dApp Id
+    SetDappFee { dapp: Id, amount: NonZeroU128 },
     /// Redistribute `amount` of rewards from `pot` to `receiver`
     RedistributeRewards {
         amount: NonZeroU128,
@@ -899,6 +927,9 @@ where
             }
             Configure::DappMetadata { dapp, metadata } => {
                 dapp::configure(api, &msg.sender, &dapp, metadata).map(|_| Reply::Empty)
+            }
+            Configure::DappFee { dapp, fee } => {
+                dapp::set_fee(api, &msg.sender, dapp, fee).map(Reply::from)
             }
         },
     }

@@ -3,17 +3,21 @@
 
 pub mod core_deps_impl;
 
+use std::num::NonZeroU128;
+
 use archway_bindings::ArchwayMsg;
 use cosmwasm_std::{
     Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError as CwStdError,
     Storage as CwStorage, SubMsg, WasmMsg,
 };
 
-use kv_storage::{item, Error as KvStoreError, Item, KvStore};
+use kv_storage::{item, map, Error as KvStoreError, Item, KvStore, Map};
 use kv_storage_bincode::{Bincode, Error as BincodeError};
 use kv_storage_cosmwasm::{Error as CwRepoError, Mutable, Readonly};
 
-use referrals_core::{Command as CoreCmd, Error as CoreError, Msg as CoreMsg, Reply as CoreReply};
+use referrals_core::{
+    Command as CoreCmd, Error as CoreError, Id, Msg as CoreMsg, Reply as CoreReply,
+};
 use referrals_cw::rewards_pot::{ExecuteMsg as PotExecMsg, InstantiateMsg as PotInitMsg};
 use referrals_cw::{ExecuteMsg, InstantiateMsg, QueryMsg, ReferralCodeResponse};
 use referrals_parse_cw::Error as ParseError;
@@ -23,6 +27,9 @@ use core_deps_impl::{CoreDeps, Error as CoreDepsError};
 pub(crate) type MutStore<'a> = KvStore<Bincode, Mutable<'a>>;
 pub(crate) type Store<'a> = KvStore<Bincode, Readonly<'a>>;
 pub(crate) type StoreError = KvStoreError<BincodeError, CwRepoError>;
+// workaround for lack of flat-fees on constantine-1 testnet
+// FIX: Next upgrade
+pub(crate) type DappFeesMap<'a> = Map<1024, &'a str, NonZeroU128>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -40,6 +47,7 @@ pub enum Error {
 
 static REWARD_POT_CODE_ID: Item<u64> = item!("reward_pot_code_id");
 static REWARD_POT_COUNT: Item<u64> = item!("reward_pot_count");
+static DAPP_FEES: DappFeesMap = map!("dapp_fees");
 
 fn set_reward_pot_code_id(storage: &mut dyn CwStorage, code_id: u64) -> Result<(), Error> {
     REWARD_POT_CODE_ID.save(&mut MutStore::from_repo(storage), &code_id)?;
@@ -52,6 +60,13 @@ fn reward_pot_code_id(storage: &dyn CwStorage) -> Result<u64, Error> {
         .ok_or(Error::CodeIdNotSet)
 }
 
+// workaround for lack of flat-fees on constantine-1 testnet
+// FIX: Next upgrade
+fn set_dapp_fee(storage: &mut dyn CwStorage, dapp: &Id, fee: NonZeroU128) -> Result<(), Error> {
+    DAPP_FEES.save(&mut MutStore::from_repo(storage), &dapp.as_ref(), &fee)?;
+    Ok(())
+}
+
 fn increment_reward_pot_count(storage: &mut dyn CwStorage) -> Result<u64, Error> {
     let mut storage = MutStore::from_repo(storage);
     let count = REWARD_POT_COUNT.may_load(&storage)?.unwrap_or_default();
@@ -60,7 +75,7 @@ fn increment_reward_pot_count(storage: &mut dyn CwStorage) -> Result<u64, Error>
 }
 
 fn core_exec(deps: &mut DepsMut, env: &Env, msg: CoreMsg) -> Result<CoreReply, Error> {
-    let mut core_deps = CoreDeps::new(deps.storage, env, &*deps.querier);
+    let mut core_deps = CoreDeps::new(deps.storage, env, &*deps.querier, DAPP_FEES);
     referrals_core::exec(&mut core_deps, msg).map_err(Error::from)
 }
 
@@ -124,6 +139,13 @@ fn add_cmd(
                 msg,
                 funds: vec![],
             })
+        }
+
+        CoreCmd::SetDappFee { dapp, amount } => {
+            // workaround for lack of flat-fees on constantine-1 testnet
+            // FIX: Next upgrade
+            set_dapp_fee(deps.storage, &dapp, amount)?;
+            response
         }
     };
 

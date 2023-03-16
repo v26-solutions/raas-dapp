@@ -11,26 +11,41 @@ use referrals_core::{
 use referrals_cw::rewards_pot::{AdminResponse, QueryMsg as RewardsPotQuery, TotalRewardsResponse};
 use referrals_storage::{Error as CoreStorageError, Storage as CoreStorage};
 
+use crate::{DappFeesMap, MutStore, StoreError};
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
-    Store(#[from] CoreStorageError<crate::StoreError>),
+    CoreStorage(#[from] CoreStorageError<StoreError>),
     #[error(transparent)]
     Query(#[from] StdError),
+    #[error(transparent)]
+    Storage(#[from] StoreError),
+    #[error("dApp fee has not been set")]
+    DappFeeNotSet,
 }
 
 pub(crate) struct CoreDeps<'a> {
-    storage: CoreStorage<crate::MutStore<'a>>,
+    storage: CoreStorage<MutStore<'a>>,
     env: &'a Env,
     querier: QuerierWrapper<'a, ArchwayQuery>,
+    // workaround for lack of flat-fees on constantine-1 testnet
+    // FIX: Next upgrade
+    dapp_fees: DappFeesMap<'a>,
 }
 
 impl<'a> CoreDeps<'a> {
-    pub fn new(storage: &'a mut dyn CwStorage, env: &'a Env, querier: &'a dyn Querier) -> Self {
+    pub fn new(
+        storage: &'a mut dyn CwStorage,
+        env: &'a Env,
+        querier: &'a dyn Querier,
+        dapp_fees: DappFeesMap<'a>,
+    ) -> Self {
         Self {
-            storage: CoreStorage::new(crate::MutStore::from_repo(storage)),
+            storage: CoreStorage::new(MutStore::from_repo(storage)),
             env,
             querier: QuerierWrapper::new(querier),
+            dapp_fees,
         }
     }
 }
@@ -59,7 +74,11 @@ impl<'a> DappQuery for CoreDeps<'a> {
     }
 
     fn current_fee(&self, id: &Id) -> Result<NonZeroU128, Self::Error> {
-        todo!()
+        // workaround for lack of flat-fees on constantine-1 testnet
+        // FIX: Next upgrade
+        self.dapp_fees
+            .may_load(self.storage.inner(), &id.as_ref())?
+            .ok_or(Error::DappFeeNotSet)
     }
 }
 
