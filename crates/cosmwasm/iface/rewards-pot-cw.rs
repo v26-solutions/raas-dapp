@@ -25,7 +25,7 @@ pub enum QueryMsg {
     TotalRewards {},
     /// The dApp for which the pot was created
     #[returns(DappResponse)]
-    DappRewards {},
+    Dapp {},
     #[returns(AdminResponse)]
     Admin {},
 }
