@@ -156,11 +156,11 @@ where
             .map_err(Error::from)
     }
 
-    fn latest(&self) -> Result<ReferralCode, Self::Error> {
+    fn latest(&self) -> Result<Option<ReferralCode>, Self::Error> {
         LATEST_CODE
-            .may_load(&self.0)?
-            .ok_or(Error::NotFound)
-            .map(ReferralCode::from)
+            .may_load(&self.0)
+            .map(|maybe_code| maybe_code.map(ReferralCode::from))
+            .map_err(Error::from)
     }
 
     fn set_code_owner(&mut self, code: ReferralCode, owner: Id) -> Result<(), Self::Error> {

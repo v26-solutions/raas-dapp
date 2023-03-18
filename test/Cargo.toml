@@ -8,3 +8,7 @@ path = "it.rs"
 doctest = false
 
 [dependencies]
+referrals-core.workspace = true
+
+expect-test = "1.4.1"
+dbg-pls = { version = "0.3.5", features = ["pretty", "derive"] }

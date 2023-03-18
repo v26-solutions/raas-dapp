@@ -43,6 +43,11 @@ pub mod common {
         pub fn into_string(self) -> String {
             self.0
         }
+
+        #[must_use]
+        pub fn as_str(&self) -> &str {
+            self.as_ref()
+        }
     }
 
     impl<T> From<T> for Id
@@ -261,7 +266,7 @@ pub mod dapp {
             return Err(Error::DappNotRegistered);
         }
 
-        if !api.has_rewards_pot(dapp)? {
+        if api.has_rewards_pot(dapp)? {
             return Err(Error::RewardsPotAlreadySet);
         }
 
@@ -293,7 +298,7 @@ pub mod dapp {
             return Err(Error::DappNotRegistered);
         }
 
-        if sender != dapp || sender != &api.collector(dapp)? {
+        if sender != dapp && sender != &api.collector(dapp)? {
             return Err(Error::Unauthorized);
         }
 
@@ -326,7 +331,7 @@ pub mod dapp {
             return Err(Error::DappNotRegistered);
         }
 
-        if sender != dapp || sender != &api.collector(dapp)? {
+        if sender != dapp && sender != &api.collector(dapp)? {
             return Err(Error::Unauthorized);
         }
 
@@ -363,7 +368,7 @@ pub mod dapp {
             return Err(Error::DappNotRegistered);
         }
 
-        if sender != &dapp || sender != &api.collector(&dapp)? {
+        if sender != &dapp && sender != &api.collector(&dapp)? {
             return Err(Error::Unauthorized);
         }
 
@@ -376,7 +381,7 @@ pub mod referral {
 
     use crate::{dapp::Query as DappQuery, dapp::Store as DappStore, Error, Id};
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Default, Clone, Copy)]
     pub struct Code(u64);
 
     impl Code {
@@ -430,7 +435,7 @@ pub mod referral {
         /// # Errors
         ///
         /// This function will return an error depending on the implementor.
-        fn latest(&self) -> Result<Code, Self::Error>;
+        fn latest(&self) -> Result<Option<Code>, Self::Error>;
 
         /// Sets a referral code's owner, overwriting the previous owner if any.
         ///
@@ -511,7 +516,7 @@ pub mod referral {
             return Err(Error::AlreadyRegistered);
         }
 
-        let code = api.latest()?.next();
+        let code = api.latest()?.unwrap_or_default().next();
 
         api.set_code_owner(code, sender)?;
 
@@ -525,6 +530,7 @@ pub mod referral {
     /// # Errors
     ///
     /// This function will return an error if:
+    /// - The referral code is not registered.
     /// - The sender is not the current owner of the given code.
     /// - There is an API error.
     pub fn transfer_ownership<Api: Store>(
@@ -553,6 +559,7 @@ pub mod referral {
     /// This function will return an error if:
     /// - The sender is not a registered dApp.
     /// - The referral code does not exist.
+    /// - Calculated earnings/contributions overflow 128-bits.
     /// - There is an API error.
     pub fn record<Api: Store + DappQuery + DappStore>(
         api: &mut Api,
@@ -715,10 +722,11 @@ pub mod collect {
             return Err(Error::NothingToCollect);
         };
 
-        let Some(owed) = api
-            .referrer_dapp_collected(dapp, code)?
+        let already_collected = api.referrer_dapp_collected(dapp, code)?;
+
+        let Some(owed) = already_collected
             .and_then(|collected| NonZeroU128::new(dapp_earnings.get() - collected.get()))
-            .or(Some(dapp_earnings))
+            .or_else(|| already_collected.is_none().then_some(dapp_earnings))
         else {
             return Err(Error::NothingToCollect);
         };
@@ -757,7 +765,7 @@ pub mod collect {
         sender: Id,
         dapp: &Id,
     ) -> Result<[Command; 2], Error<Api::Error>> {
-        if &sender != dapp || sender != api.collector(dapp)? {
+        if &sender != dapp && sender != api.collector(dapp)? {
             return Err(Error::Unauthorized);
         }
 
@@ -774,10 +782,11 @@ pub mod collect {
             return Err(Error::NothingToCollect);
         };
 
-        let Some(owed) = api
-            .dapp_total_collected(dapp)?
+        let already_collected = api.dapp_total_collected(dapp)?;
+
+        let Some(owed) = already_collected
             .and_then(|collected| NonZeroU128::new(total_remaining.get() - collected.get()))
-            .or(Some(total_remaining))
+            .or_else(|| already_collected.is_none().then_some(total_remaining))
         else {
             return Err(Error::NothingToCollect);
         };
@@ -854,6 +863,7 @@ pub struct Msg {
     pub kind: MsgKind,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     /// Create a rewards pot for the given dApp Id
     CreateRewardsPot(Id),
@@ -881,7 +891,7 @@ pub enum Reply {
     /// Single command to enact
     Cmd(Command),
     /// Multiple commands to enact in the given order
-    MultiCmd(Box<dyn Iterator<Item = Command>>),
+    MultiCmd(Vec<Command>),
 }
 
 /// Handle a message, this is the defacto entry point.
@@ -953,6 +963,24 @@ where
     T::IntoIter: 'static,
 {
     fn from(v: T) -> Self {
-        Reply::MultiCmd(Box::new(v.into_iter()))
+        Reply::MultiCmd(v.into_iter().collect())
+    }
+}
+
+impl From<Configure> for MsgKind {
+    fn from(v: Configure) -> Self {
+        Self::Config(v)
+    }
+}
+
+impl From<Collection> for MsgKind {
+    fn from(v: Collection) -> Self {
+        Self::Collect(v)
+    }
+}
+
+impl From<Registration> for MsgKind {
+    fn from(v: Registration) -> Self {
+        Self::Register(v)
     }
 }
