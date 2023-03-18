@@ -156,7 +156,7 @@ impl<'a> ReferralStore for CoreDeps<'a> {
         self.storage.set_latest(code).map_err(Error::from)
     }
 
-    fn latest(&self) -> Result<ReferralCode, Self::Error> {
+    fn latest(&self) -> Result<Option<ReferralCode>, Self::Error> {
         self.storage.latest().map_err(Error::from)
     }
 

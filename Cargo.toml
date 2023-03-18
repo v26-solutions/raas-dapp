@@ -1,15 +1,22 @@
 [workspace]
-members = [ "crates/core", "crates/storage", "crates/cosmwasm/*","test" ]
+# deeper = more platform specific
+members = [ 
+  "crates/core", 
+  "crates/storage", 
+  "crates/cosmwasm/*", 
+  "crates/cosmwasm/archway/*", 
+  "test" 
+]
 
 [workspace.dependencies]
 thiserror = "1.0.38"
 
-cosmwasm-schema = "1.2.2"
-cosmwasm-std = "1.2.2"
-
 kv-storage = { git = "https://github.com/v26-solutions/kv-storage" }
 kv-storage-bincode = { git = "https://github.com/v26-solutions/kv-storage" }
 kv-storage-cosmwasm = { git = "https://github.com/v26-solutions/kv-storage" }
+
+cosmwasm-schema = "1.2.2"
+cosmwasm-std = "1.2.2"
 
 archway-bindings = { git = "https://github.com/chris-ricketts/archway-bindings" }
 
@@ -18,5 +25,5 @@ referrals-storage = { path = "crates/storage" }
 referrals-cw = { path = "crates/cosmwasm/iface" }
 referrals-parse-cw = { path = "crates/cosmwasm/parse" }
 
-archway-referrals = { path = "crates/cosmwasm/archway-referrals" }
-archway-rewards-pot = { path = "crates/cosmwasm/archway-rewards-pot" }
+archway-referrals = { path = "crates/cosmwasm/archway" }
+archway-rewards-pot = { path = "crates/cosmwasm/archway/rewards-pot" }
