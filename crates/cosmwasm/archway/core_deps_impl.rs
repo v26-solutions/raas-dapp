@@ -117,6 +117,10 @@ impl<'a> ReadonlyDappStore for CoreDeps<'a> {
 }
 
 impl<'a> MutableDappStore for CoreDeps<'a> {
+    fn add_dapp(&mut self, id: &Id, name: String) -> Result<(), Self::Error> {
+        self.storage.add_dapp(id, name).map_err(Error::from)
+    }
+
     fn remove_dapp(&mut self, id: &Id) -> Result<(), Self::Error> {
         self.storage.remove_dapp(id).map_err(Error::from)
     }

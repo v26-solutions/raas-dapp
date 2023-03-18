@@ -32,6 +32,7 @@ fn collect_earnings_post_deregister() {
         api,
         "dapp",
         Registration::Dapp {
+            name: "dapp".to_owned(),
             percent: nzp!(50),
             collector: Id::from("collector"),
         }
@@ -123,6 +124,7 @@ fn msg_routing() {
         api,
         "dapp",
         Registration::Dapp {
+            name: "dapp".to_owned(),
             percent: nzp!(50),
             collector: Id::from("collector"),
         }
@@ -233,26 +235,26 @@ fn msg_routing() {
     check(
         crate::pretty(&api),
         expect![[r#"
-                MockApi {
-                    dapp: Some("dapp"),
-                    percent: Some(75),
-                    collector: Some("collector"),
-                    rewards_pot: Some("rewards_pot"),
-                    rewards_pot_admin: None,
-                    rewards_admin: Some("self"),
-                    current_fee: Some(1000),
-                    referral_code: Some(1),
-                    referral_code_owner: Some("referrer2"),
-                    latest_referral_code: Some(1),
-                    dapp_reffered_invocations: 1,
-                    code_total_earnings: 750,
-                    code_dapp_earnings: 750,
-                    dapp_contributions: 750,
-                    code_total_collected: 750,
-                    code_dapp_collected: 750,
-                    dapp_total_collected: 0,
-                    dapp_total_rewards: 1333,
-                }"#]],
+            MockApi {
+                dapp: Some(("dapp", "dapp")),
+                percent: Some(75),
+                collector: Some("collector"),
+                rewards_pot: Some("rewards_pot"),
+                rewards_pot_admin: None,
+                rewards_admin: Some("self"),
+                current_fee: Some(1000),
+                referral_code: Some(1),
+                referral_code_owner: Some("referrer2"),
+                latest_referral_code: Some(1),
+                dapp_reffered_invocations: 1,
+                code_total_earnings: 750,
+                code_dapp_earnings: 750,
+                dapp_contributions: 750,
+                code_total_collected: 750,
+                code_dapp_collected: 750,
+                dapp_total_collected: 0,
+                dapp_total_rewards: 1333,
+            }"#]],
     );
 
     let res = exec_msg_ok!(

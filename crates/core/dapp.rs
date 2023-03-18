@@ -46,6 +46,13 @@ pub trait ReadonlyStore: crate::FallibleApi {
 }
 
 pub trait MutableStore: crate::FallibleApi {
+    /// Add a new named dApp
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn add_dapp(&mut self, id: &Id, name: String) -> Result<(), Self::Error>;
+
     ///  Remove an existing dapp, once executed `dapp_exists` will return false.
     ///
     /// # Errors
@@ -123,6 +130,7 @@ pub trait Query: crate::FallibleApi {
 pub fn register<Api>(
     api: &mut Api,
     sender: Id,
+    name: String,
     percent: NonZeroPercent,
     collector: Id,
 ) -> Result<Command, Error<Api::Error>>
@@ -136,6 +144,8 @@ where
     if api.self_id()? != api.rewards_admin(&sender)? {
         return Err(Error::InvalidRewardsAdmin);
     }
+
+    api.add_dapp(&sender, name)?;
 
     api.set_percent(&sender, percent)?;
 

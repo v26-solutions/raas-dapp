@@ -38,12 +38,15 @@ pub fn parse_exec(
     let kind = match cw_msg {
         ReferralsExecuteMsg::RegisterReferrer {} => CoreMsgKind::Register(Registration::Referrer),
 
-        ReferralsExecuteMsg::RegisterDapp { percent, collector } => {
-            CoreMsgKind::Register(Registration::Dapp {
-                percent: NonZeroPercent::new(percent).ok_or(Error::InvalidPercent)?,
-                collector: api.addr_validate(&collector).map(Id::from)?,
-            })
-        }
+        ReferralsExecuteMsg::RegisterDapp {
+            name,
+            percent,
+            collector,
+        } => CoreMsgKind::Register(Registration::Dapp {
+            name,
+            percent: NonZeroPercent::new(percent).ok_or(Error::InvalidPercent)?,
+            collector: api.addr_validate(&collector).map(Id::from)?,
+        }),
 
         ReferralsExecuteMsg::DeregisterDapp {
             dapp,

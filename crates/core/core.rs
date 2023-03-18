@@ -51,6 +51,7 @@ pub enum Registration {
     Referrer,
     /// Dapp self-registration to take referrals
     Dapp {
+        name: String,
         percent: NonZeroPercent,
         collector: Id,
     },
@@ -142,9 +143,11 @@ where
     match msg.kind {
         MsgKind::Register(reg) => match reg {
             Registration::Referrer => referral::register(api, msg.sender).map(Reply::from),
-            Registration::Dapp { percent, collector } => {
-                dapp::register(api, msg.sender, percent, collector).map(Reply::from)
-            }
+            Registration::Dapp {
+                name,
+                percent,
+                collector,
+            } => dapp::register(api, msg.sender, name, percent, collector).map(Reply::from),
             Registration::RewardsPot { dapp, rewards_pot } => {
                 dapp::set_rewards_pot(api, &dapp, rewards_pot).map(Reply::from)
             }

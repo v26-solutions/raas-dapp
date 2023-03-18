@@ -9,7 +9,10 @@ use super::*;
 
 impl ReadonlyDappStore for MockApi {
     fn dapp_exists(&self, id: &Id) -> Result<bool, Self::Error> {
-        Ok(self.dapp.as_ref().map_or(false, |dapp| dapp == id.as_str()))
+        Ok(self
+            .dapp
+            .as_ref()
+            .map_or(false, |(dapp, _)| dapp == id.as_str()))
     }
 
     fn percent(&self, _id: &Id) -> Result<NonZeroPercent, Self::Error> {
@@ -30,6 +33,11 @@ impl ReadonlyDappStore for MockApi {
 }
 
 impl MutableDappStore for MockApi {
+    fn add_dapp(&mut self, id: &Id, name: String) -> Result<(), Self::Error> {
+        self.dapp = Some((id.clone().into_string(), name));
+        Ok(())
+    }
+
     fn remove_dapp(&mut self, id: &Id) -> Result<(), Self::Error> {
         if self.dapp_exists(id)? {
             self.dapp.take();
@@ -39,24 +47,24 @@ impl MutableDappStore for MockApi {
     }
 
     fn set_percent(&mut self, id: &Id, percent: NonZeroPercent) -> Result<(), Self::Error> {
-        self.dapp = Some(id.as_str().into());
+        assert!(self.dapp_exists(id)?);
         self.percent = Some(percent.to_u8());
         Ok(())
     }
 
     fn set_collector(&mut self, id: &Id, collector: Id) -> Result<(), Self::Error> {
-        self.dapp = Some(id.as_str().into());
+        assert!(self.dapp_exists(id)?);
         self.collector = Some(collector.into_string());
         Ok(())
     }
 
     fn set_repo_url(&mut self, id: &Id, _repo_url: String) -> Result<(), Self::Error> {
-        self.dapp = Some(id.as_str().into());
+        assert!(self.dapp_exists(id)?);
         Ok(())
     }
 
     fn set_rewards_pot(&mut self, id: &Id, rewards_pot: Id) -> Result<(), Self::Error> {
-        self.dapp = Some(id.as_str().into());
+        assert!(self.dapp_exists(id)?);
         self.rewards_pot = Some(rewards_pot.into_string());
         Ok(())
     }

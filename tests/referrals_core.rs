@@ -6,7 +6,7 @@ use dbg_pls::DebugPls;
 
 #[derive(DebugPls, Default)]
 pub struct MockApi {
-    dapp: Option<String>,
+    dapp: Option<(String, String)>,
     percent: Option<u8>,
     collector: Option<String>,
     rewards_pot: Option<String>,
@@ -42,7 +42,7 @@ macro_rules! nz {
 
 impl MockApi {
     pub fn dapp(mut self, id: &str) -> Self {
-        self.dapp = Some(id.into());
+        self.dapp = Some((id.to_owned(), id.to_owned()));
         self
     }
 

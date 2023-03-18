@@ -15,7 +15,7 @@ pub fn works() {
         pretty(&api),
         expect![[r#"
             MockApi {
-                dapp: Some("dapp"),
+                dapp: Some(("dapp", "dapp")),
                 percent: None,
                 collector: None,
                 rewards_pot: Some("rewards_pot"),

@@ -4,7 +4,14 @@ use super::*;
 pub fn works() {
     let mut api = MockApi::default().rewards_admin(SELF_ID);
 
-    let res = dapp::register(&mut api, Id::from("dapp"), nzp!(100), Id::from("collector")).unwrap();
+    let res = dapp::register(
+        &mut api,
+        Id::from("dapp"),
+        "dapp".to_owned(),
+        nzp!(100),
+        Id::from("collector"),
+    )
+    .unwrap();
 
     check(debug(res), expect![[r#"CreateRewardsPot(Id("dapp"))"#]]);
 
@@ -12,7 +19,7 @@ pub fn works() {
         pretty(&api),
         expect![[r#"
             MockApi {
-                dapp: Some("dapp"),
+                dapp: Some(("dapp", "dapp")),
                 percent: Some(100),
                 collector: Some("collector"),
                 rewards_pot: None,
@@ -38,8 +45,14 @@ pub fn works() {
 pub fn already_registered_fails() {
     let mut api = MockApi::default().dapp("dapp");
 
-    let res =
-        dapp::register(&mut api, Id::from("dapp"), nzp!(100), Id::from("collector")).unwrap_err();
+    let res = dapp::register(
+        &mut api,
+        Id::from("dapp"),
+        "dapp".to_owned(),
+        nzp!(100),
+        Id::from("collector"),
+    )
+    .unwrap_err();
 
     check(res, expect!["already registered"]);
 }
@@ -48,8 +61,14 @@ pub fn already_registered_fails() {
 pub fn not_referrals_admin_fails() {
     let mut api = MockApi::default().rewards_admin("bob");
 
-    let res =
-        dapp::register(&mut api, Id::from("dapp"), nzp!(100), Id::from("collector")).unwrap_err();
+    let res = dapp::register(
+        &mut api,
+        Id::from("dapp"),
+        "dapp".to_owned(),
+        nzp!(100),
+        Id::from("collector"),
+    )
+    .unwrap_err();
 
     check(res, expect!["invalid rewards admin"]);
 }

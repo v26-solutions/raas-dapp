@@ -18,6 +18,8 @@ pub enum ExecuteMsg {
     /// Register as a dApp
     /// Rewards admin rights must be transferred prior to issuing
     RegisterDapp {
+        /// The name of the dApp
+        name: String,
         /// Percent of flat-fee rewards to give referrers, 1-100
         percent: u8,
         /// Address of nominated rewards collector

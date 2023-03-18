@@ -8,7 +8,14 @@ path = "it.rs"
 doctest = false
 
 [dependencies]
+thiserror.workspace = true
+kv-storage.workspace = true
+
 referrals-core.workspace = true
+referrals-storage.workspace = true
 
 expect-test = "1.4.1"
 dbg-pls = { version = "0.3.5", features = ["pretty", "derive"] }
+ron = { version = "0.8.0", features = [ "integer128" ] }
+serde = "1.0.157"
+
