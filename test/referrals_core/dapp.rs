@@ -1,17 +1,35 @@
 #[cfg(test)]
 use referrals_core::dapp;
-use referrals_core::{DappQuery, DappStore};
+use referrals_core::{DappQuery, MutableDappStore, ReadonlyDappStore};
 
 #[cfg(test)]
 use crate::{check, debug, debug_slice, expect, pretty};
 
 use super::*;
 
-impl DappStore for MockApi {
+impl ReadonlyDappStore for MockApi {
     fn dapp_exists(&self, id: &Id) -> Result<bool, Self::Error> {
         Ok(self.dapp.as_ref().map_or(false, |dapp| dapp == id.as_str()))
     }
 
+    fn percent(&self, _id: &Id) -> Result<NonZeroPercent, Self::Error> {
+        Ok(self.percent.and_then(NonZeroPercent::new).unwrap())
+    }
+
+    fn collector(&self, _id: &Id) -> Result<Id, Self::Error> {
+        Ok(self.collector.as_ref().map(Id::from).unwrap())
+    }
+
+    fn has_rewards_pot(&self, id: &Id) -> Result<bool, Self::Error> {
+        Ok(self.dapp_exists(id)? && self.rewards_pot.is_some())
+    }
+
+    fn rewards_pot(&self, _id: &Id) -> Result<Id, Self::Error> {
+        Ok(self.rewards_pot.as_ref().map(Id::from).unwrap())
+    }
+}
+
+impl MutableDappStore for MockApi {
     fn remove_dapp(&mut self, id: &Id) -> Result<(), Self::Error> {
         if self.dapp_exists(id)? {
             self.dapp.take();
@@ -26,18 +44,10 @@ impl DappStore for MockApi {
         Ok(())
     }
 
-    fn percent(&self, _id: &Id) -> Result<NonZeroPercent, Self::Error> {
-        Ok(self.percent.and_then(NonZeroPercent::new).unwrap())
-    }
-
     fn set_collector(&mut self, id: &Id, collector: Id) -> Result<(), Self::Error> {
         self.dapp = Some(id.as_str().into());
         self.collector = Some(collector.into_string());
         Ok(())
-    }
-
-    fn collector(&self, _id: &Id) -> Result<Id, Self::Error> {
-        Ok(self.collector.as_ref().map(Id::from).unwrap())
     }
 
     fn set_repo_url(&mut self, id: &Id, _repo_url: String) -> Result<(), Self::Error> {
@@ -49,14 +59,6 @@ impl DappStore for MockApi {
         self.dapp = Some(id.as_str().into());
         self.rewards_pot = Some(rewards_pot.into_string());
         Ok(())
-    }
-
-    fn has_rewards_pot(&mut self, id: &Id) -> Result<bool, Self::Error> {
-        Ok(self.dapp_exists(id)? && self.rewards_pot.is_some())
-    }
-
-    fn rewards_pot(&self, _id: &Id) -> Result<Id, Self::Error> {
-        Ok(self.rewards_pot.as_ref().map(Id::from).unwrap())
     }
 }
 

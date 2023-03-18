@@ -1,3 +1,5 @@
+use referrals_core::MutableReferralStore;
+
 use super::*;
 
 #[test]

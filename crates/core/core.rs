@@ -36,9 +36,12 @@ pub use common::*;
 pub use dapp::Metadata as DappMetadata;
 pub use referral::Code as ReferralCode;
 
-pub use collect::Store as CollectStore;
-pub use dapp::Store as DappStore;
-pub use referral::Store as ReferralStore;
+pub use collect::MutableStore as MutableCollectStore;
+pub use collect::ReadonlyStore as ReadonlyCollectStore;
+pub use dapp::MutableStore as MutableDappStore;
+pub use dapp::ReadonlyStore as ReadonlyDappStore;
+pub use referral::MutableStore as MutableReferralStore;
+pub use referral::ReadonlyStore as ReadonlyReferralStore;
 
 pub use collect::Query as CollectQuery;
 pub use dapp::Query as DappQuery;
@@ -127,7 +130,14 @@ pub enum Reply {
 /// This function will return an error if delegation of the message kind encounters an error.
 pub fn exec<Api>(api: &mut Api, msg: Msg) -> Result<Reply, Error<Api::Error>>
 where
-    Api: dapp::Store + dapp::Query + referral::Store + collect::Store + collect::Query,
+    Api: ReadonlyDappStore
+        + MutableDappStore
+        + DappQuery
+        + ReadonlyReferralStore
+        + MutableReferralStore
+        + ReadonlyCollectStore
+        + MutableCollectStore
+        + CollectQuery,
 {
     match msg.kind {
         MsgKind::Register(reg) => match reg {

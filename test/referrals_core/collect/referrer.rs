@@ -1,4 +1,4 @@
-use referrals_core::DappStore;
+use referrals_core::{MutableDappStore, MutableReferralStore};
 
 use super::*;
 

@@ -8,7 +8,7 @@ pub struct Metadata {
     pub repo_url: Option<String>,
 }
 
-pub trait Store: crate::FallibleApi {
+pub trait ReadonlyStore: crate::FallibleApi {
     /// Checks whether the given `id` exists in dApp store.
     ///
     /// # Errors
@@ -16,6 +16,36 @@ pub trait Store: crate::FallibleApi {
     /// This function will return an error depending on the implementor.
     fn dapp_exists(&self, id: &Id) -> Result<bool, Self::Error>;
 
+    /// Gets the percentage of a dApp's fee to give to the referrer
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn percent(&self, id: &Id) -> Result<NonZeroPercent, Self::Error>;
+
+    /// Gets a dApp's rewards collector Id
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn collector(&self, id: &Id) -> Result<Id, Self::Error>;
+
+    /// Checks if the dApp with the given id has a rewards pot set
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn has_rewards_pot(&self, id: &Id) -> Result<bool, Self::Error>;
+
+    /// Gets the Id of a dApp's rewards pot
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn rewards_pot(&self, id: &Id) -> Result<Id, Self::Error>;
+}
+
+pub trait MutableStore: crate::FallibleApi {
     ///  Remove an existing dapp, once executed `dapp_exists` will return false.
     ///
     /// # Errors
@@ -30,26 +60,12 @@ pub trait Store: crate::FallibleApi {
     /// This function will return an error depending on the implementor.
     fn set_percent(&mut self, id: &Id, percent: NonZeroPercent) -> Result<(), Self::Error>;
 
-    /// Gets the percentage of a dApp's fee to give to the referrer
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn percent(&self, id: &Id) -> Result<NonZeroPercent, Self::Error>;
-
     /// Sets a dApp's rewards collector Id
     ///
     /// # Errors
     ///
     /// This function will return an error depending on the implementor.
     fn set_collector(&mut self, id: &Id, collector: Id) -> Result<(), Self::Error>;
-
-    /// Gets a dApp's rewards collector Id
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn collector(&self, id: &Id) -> Result<Id, Self::Error>;
 
     /// Sets a dApp's repository url
     ///
@@ -64,20 +80,6 @@ pub trait Store: crate::FallibleApi {
     ///
     /// This function will return an error depending on the implementor.
     fn set_rewards_pot(&mut self, id: &Id, rewards_pot: Id) -> Result<(), Self::Error>;
-
-    /// Checks if the dApp with the given id has a rewards pot set
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn has_rewards_pot(&mut self, id: &Id) -> Result<bool, Self::Error>;
-
-    /// Gets the Id of a dApp's rewards pot
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn rewards_pot(&self, id: &Id) -> Result<Id, Self::Error>;
 }
 
 pub trait Query: crate::FallibleApi {
@@ -118,12 +120,15 @@ pub trait Query: crate::FallibleApi {
 /// - The dApp is already registered.
 /// - The dApp does not have the referral program set as rewards receiver.
 /// - There is an API error.
-pub fn register<Api: Store + Query>(
+pub fn register<Api>(
     api: &mut Api,
     sender: Id,
     percent: NonZeroPercent,
     collector: Id,
-) -> Result<Command, Error<Api::Error>> {
+) -> Result<Command, Error<Api::Error>>
+where
+    Api: ReadonlyStore + MutableStore + Query,
+{
     if api.dapp_exists(&sender)? {
         return Err(Error::AlreadyRegistered);
     }
@@ -148,11 +153,14 @@ pub fn register<Api: Store + Query>(
 /// - There is already a rewards pot set for the dApp
 /// - Self ID is not the admin of the rewards pot
 /// - There is an API error.
-pub fn set_rewards_pot<Api: Store + Query>(
+pub fn set_rewards_pot<Api>(
     api: &mut Api,
     dapp: &Id,
     rewards_pot: Id,
-) -> Result<Command, Error<Api::Error>> {
+) -> Result<Command, Error<Api::Error>>
+where
+    Api: ReadonlyStore + MutableStore + Query,
+{
     if !api.dapp_exists(dapp)? {
         return Err(Error::DappNotRegistered);
     }
@@ -178,13 +186,16 @@ pub fn set_rewards_pot<Api: Store + Query>(
 /// - The dApp is not registered.
 /// - The sender is not either the dApp or it's collector.
 /// - There is an API error.
-pub fn deregister<Api: Store + Query>(
+pub fn deregister<Api>(
     api: &mut Api,
     sender: &Id,
     dapp: &Id,
     rewards_admin: Id,
     rewards_recipient: Id,
-) -> Result<[Command; 3], Error<Api::Error>> {
+) -> Result<[Command; 3], Error<Api::Error>>
+where
+    Api: ReadonlyStore + MutableStore + Query,
+{
     if !api.dapp_exists(dapp)? {
         return Err(Error::DappNotRegistered);
     }
@@ -212,12 +223,15 @@ pub fn deregister<Api: Store + Query>(
 /// - The dApp is not registered.
 /// - The sender is not either the dApp or it's collector.
 /// - There is an API error.
-pub fn configure<Api: Store>(
+pub fn configure<Api>(
     api: &mut Api,
     sender: &Id,
     dapp: &Id,
     metadata: Metadata,
-) -> Result<(), Error<Api::Error>> {
+) -> Result<(), Error<Api::Error>>
+where
+    Api: ReadonlyStore + MutableStore,
+{
     if !api.dapp_exists(dapp)? {
         return Err(Error::DappNotRegistered);
     }
@@ -249,12 +263,15 @@ pub fn configure<Api: Store>(
 /// - The dApp is not registered.
 /// - The sender is not either the dApp or it's collector.
 /// - There is an API error.
-pub fn set_fee<Api: Store>(
+pub fn set_fee<Api>(
     api: &mut Api,
     sender: &Id,
     dapp: Id,
     amount: NonZeroU128,
-) -> Result<Command, Error<Api::Error>> {
+) -> Result<Command, Error<Api::Error>>
+where
+    Api: ReadonlyStore,
+{
     if !api.dapp_exists(&dapp)? {
         return Err(Error::DappNotRegistered);
     }

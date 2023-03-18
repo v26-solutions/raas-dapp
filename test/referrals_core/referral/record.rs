@@ -1,3 +1,5 @@
+use referrals_core::MutableDappStore;
+
 use super::*;
 
 #[test]

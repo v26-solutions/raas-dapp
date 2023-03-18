@@ -4,10 +4,11 @@
 use std::num::NonZeroU128;
 
 use referrals_core::{
-    CollectStore, DappStore, FallibleApi, Id, NonZeroPercent, ReferralCode, ReferralStore,
+    FallibleApi, Id, MutableCollectStore, MutableDappStore, MutableReferralStore, NonZeroPercent,
+    ReadonlyCollectStore, ReadonlyDappStore, ReadonlyReferralStore, ReferralCode,
 };
 
-use kv_storage::{item, map, Item, Map, MutStorage as MutKvStorage};
+use kv_storage::{item, map, Item, Map, MutStorage as MutKvStorage, Storage as ReadonlyKvStorage};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<S> {
@@ -35,7 +36,7 @@ impl<T> Storage<T> {
 
 impl<T> FallibleApi for Storage<T>
 where
-    T: MutKvStorage,
+    T: ReadonlyKvStorage,
 {
     type Error = Error<T::Error>;
 }
@@ -50,22 +51,12 @@ static DAPP_REPO_URL: Map<1024, &str, String> = map!("dapp_repo_url");
 
 static DAPP_REWARDS_POT: Map<1024, &str, String> = map!("dapp_rewards_pot");
 
-impl<T> DappStore for Storage<T>
+impl<T> ReadonlyDappStore for Storage<T>
 where
-    T: MutKvStorage,
+    T: ReadonlyKvStorage,
 {
     fn dapp_exists(&self, id: &Id) -> Result<bool, Self::Error> {
         DAPPS.has_key(&self.0, &id.as_ref()).map_err(Error::from)
-    }
-
-    fn remove_dapp(&mut self, id: &Id) -> Result<(), Self::Error> {
-        DAPPS.remove(&mut self.0, &id.as_ref()).map_err(Error::from)
-    }
-
-    fn set_percent(&mut self, id: &Id, percent: NonZeroPercent) -> Result<(), Self::Error> {
-        DAPP_PERCENT
-            .save(&mut self.0, &id.as_ref(), &percent.to_u8())
-            .map_err(Error::from)
     }
 
     fn percent(&self, id: &Id) -> Result<NonZeroPercent, Self::Error> {
@@ -76,17 +67,45 @@ where
             .map(Option::unwrap) // safe as only NonZeroPercent's accepted into storage
     }
 
-    fn set_collector(&mut self, id: &Id, collector: Id) -> Result<(), Self::Error> {
-        DAPP_COLLECTOR
-            .save(&mut self.0, &id.as_ref(), collector.as_ref())
-            .map_err(Error::from)
-    }
-
     fn collector(&self, id: &Id) -> Result<Id, Self::Error> {
         DAPP_COLLECTOR
             .may_load(&self.0, &id.as_ref())?
             .ok_or(Error::NotFound)
             .map(Id::from)
+    }
+
+    fn has_rewards_pot(&self, id: &Id) -> Result<bool, Self::Error> {
+        DAPP_REWARDS_POT
+            .has_key(&self.0, &id.as_ref())
+            .map_err(Error::from)
+    }
+
+    fn rewards_pot(&self, id: &Id) -> Result<Id, Self::Error> {
+        DAPP_COLLECTOR
+            .may_load(&self.0, &id.as_ref())?
+            .ok_or(Error::NotFound)
+            .map(Id::from)
+    }
+}
+
+impl<T> MutableDappStore for Storage<T>
+where
+    T: MutKvStorage,
+{
+    fn remove_dapp(&mut self, id: &Id) -> Result<(), Self::Error> {
+        DAPPS.remove(&mut self.0, &id.as_ref()).map_err(Error::from)
+    }
+
+    fn set_percent(&mut self, id: &Id, percent: NonZeroPercent) -> Result<(), Self::Error> {
+        DAPP_PERCENT
+            .save(&mut self.0, &id.as_ref(), &percent.to_u8())
+            .map_err(Error::from)
+    }
+
+    fn set_collector(&mut self, id: &Id, collector: Id) -> Result<(), Self::Error> {
+        DAPP_COLLECTOR
+            .save(&mut self.0, &id.as_ref(), collector.as_ref())
+            .map_err(Error::from)
     }
 
     fn set_repo_url(&mut self, id: &Id, repo_url: String) -> Result<(), Self::Error> {
@@ -99,19 +118,6 @@ where
         DAPP_REWARDS_POT
             .save(&mut self.0, &id.as_ref(), rewards_pot.as_ref())
             .map_err(Error::from)
-    }
-
-    fn has_rewards_pot(&mut self, id: &Id) -> Result<bool, Self::Error> {
-        DAPP_REWARDS_POT
-            .has_key(&self.0, &id.as_ref())
-            .map_err(Error::from)
-    }
-
-    fn rewards_pot(&self, id: &Id) -> Result<Id, Self::Error> {
-        DAPP_COLLECTOR
-            .may_load(&self.0, &id.as_ref())?
-            .ok_or(Error::NotFound)
-            .map(Id::from)
     }
 }
 
@@ -129,9 +135,9 @@ static CODE_DAPP_EARNINGS: Map<1024, (&str, u64), NonZeroU128> = map!("code_dapp
 
 static DAPP_CONTRIBUTIONS: Map<1024, &str, NonZeroU128> = map!("dapp_contributions");
 
-impl<T> ReferralStore for Storage<T>
+impl<T> ReadonlyReferralStore for Storage<T>
 where
-    T: MutKvStorage,
+    T: ReadonlyKvStorage,
 {
     fn code_exists(&self, code: ReferralCode) -> Result<bool, Self::Error> {
         CODES.has_key(&self.0, &code.to_u64()).map_err(Error::from)
@@ -150,16 +156,43 @@ where
             .map_err(Error::from)
     }
 
-    fn set_latest(&mut self, code: ReferralCode) -> Result<(), Self::Error> {
-        LATEST_CODE
-            .save(&mut self.0, &code.to_u64())
-            .map_err(Error::from)
-    }
-
     fn latest(&self) -> Result<Option<ReferralCode>, Self::Error> {
         LATEST_CODE
             .may_load(&self.0)
             .map(|maybe_code| maybe_code.map(ReferralCode::from))
+            .map_err(Error::from)
+    }
+
+    fn total_earnings(&self, code: ReferralCode) -> Result<Option<NonZeroU128>, Self::Error> {
+        CODE_TOTAL_EARNINGS
+            .may_load(&self.0, &code.to_u64())
+            .map_err(Error::from)
+    }
+
+    fn dapp_earnings(
+        &self,
+        dapp: &Id,
+        code: ReferralCode,
+    ) -> Result<Option<NonZeroU128>, Self::Error> {
+        CODE_DAPP_EARNINGS
+            .may_load(&self.0, &(dapp.as_ref(), code.to_u64()))
+            .map_err(Error::from)
+    }
+
+    fn dapp_contributions(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
+        DAPP_CONTRIBUTIONS
+            .may_load(&self.0, &dapp.as_ref())
+            .map_err(Error::from)
+    }
+}
+
+impl<T> MutableReferralStore for Storage<T>
+where
+    T: MutKvStorage,
+{
+    fn set_latest(&mut self, code: ReferralCode) -> Result<(), Self::Error> {
+        LATEST_CODE
+            .save(&mut self.0, &code.to_u64())
             .map_err(Error::from)
     }
 
@@ -189,12 +222,6 @@ where
             .map_err(Error::from)
     }
 
-    fn total_earnings(&self, code: ReferralCode) -> Result<Option<NonZeroU128>, Self::Error> {
-        CODE_TOTAL_EARNINGS
-            .may_load(&self.0, &code.to_u64())
-            .map_err(Error::from)
-    }
-
     fn set_dapp_earnings(
         &mut self,
         dapp: &Id,
@@ -203,16 +230,6 @@ where
     ) -> Result<(), Self::Error> {
         CODE_DAPP_EARNINGS
             .save(&mut self.0, &(dapp.as_ref(), code.to_u64()), &total)
-            .map_err(Error::from)
-    }
-
-    fn dapp_earnings(
-        &self,
-        dapp: &Id,
-        code: ReferralCode,
-    ) -> Result<Option<NonZeroU128>, Self::Error> {
-        CODE_DAPP_EARNINGS
-            .may_load(&self.0, &(dapp.as_ref(), code.to_u64()))
             .map_err(Error::from)
     }
 
@@ -225,12 +242,6 @@ where
             .save(&mut self.0, &dapp.as_ref(), &contributions)
             .map_err(Error::from)
     }
-
-    fn dapp_contributions(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
-        DAPP_CONTRIBUTIONS
-            .may_load(&self.0, &dapp.as_ref())
-            .map_err(Error::from)
-    }
 }
 
 static REFERRER_TOTAL_COLLECTED: Map<1024, u64, NonZeroU128> = map!("referrer_total_collected");
@@ -240,7 +251,37 @@ static REFERRER_DAPP_COLLECTED: Map<1024, (&str, u64), NonZeroU128> =
 
 static DAPP_TOTAL_COLLECTED: Map<1024, &str, NonZeroU128> = map!("dapp_total_collected");
 
-impl<T> CollectStore for Storage<T>
+impl<T> ReadonlyCollectStore for Storage<T>
+where
+    T: ReadonlyKvStorage,
+{
+    fn referrer_total_collected(
+        &self,
+        code: ReferralCode,
+    ) -> Result<Option<NonZeroU128>, Self::Error> {
+        REFERRER_TOTAL_COLLECTED
+            .may_load(&self.0, &code.to_u64())
+            .map_err(Error::from)
+    }
+
+    fn referrer_dapp_collected(
+        &self,
+        dapp: &Id,
+        code: ReferralCode,
+    ) -> Result<Option<NonZeroU128>, Self::Error> {
+        REFERRER_DAPP_COLLECTED
+            .may_load(&self.0, &(dapp.as_ref(), code.to_u64()))
+            .map_err(Error::from)
+    }
+
+    fn dapp_total_collected(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
+        DAPP_TOTAL_COLLECTED
+            .may_load(&self.0, &dapp.as_ref())
+            .map_err(Error::from)
+    }
+}
+
+impl<T> MutableCollectStore for Storage<T>
 where
     T: MutKvStorage,
 {
@@ -251,15 +292,6 @@ where
     ) -> Result<(), Self::Error> {
         REFERRER_TOTAL_COLLECTED
             .save(&mut self.0, &code.to_u64(), &total)
-            .map_err(Error::from)
-    }
-
-    fn referrer_total_collected(
-        &self,
-        code: ReferralCode,
-    ) -> Result<Option<NonZeroU128>, Self::Error> {
-        REFERRER_TOTAL_COLLECTED
-            .may_load(&self.0, &code.to_u64())
             .map_err(Error::from)
     }
 
@@ -274,16 +306,6 @@ where
             .map_err(Error::from)
     }
 
-    fn referrer_dapp_collected(
-        &self,
-        dapp: &Id,
-        code: ReferralCode,
-    ) -> Result<Option<NonZeroU128>, Self::Error> {
-        REFERRER_DAPP_COLLECTED
-            .may_load(&self.0, &(dapp.as_ref(), code.to_u64()))
-            .map_err(Error::from)
-    }
-
     fn set_dapp_total_collected(
         &mut self,
         dapp: &Id,
@@ -291,12 +313,6 @@ where
     ) -> Result<(), Self::Error> {
         DAPP_TOTAL_COLLECTED
             .save(&mut self.0, &dapp.as_ref(), &total)
-            .map_err(Error::from)
-    }
-
-    fn dapp_total_collected(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
-        DAPP_TOTAL_COLLECTED
-            .may_load(&self.0, &dapp.as_ref())
             .map_err(Error::from)
     }
 }

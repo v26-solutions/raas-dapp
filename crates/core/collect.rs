@@ -1,8 +1,38 @@
 use std::num::NonZeroU128;
 
-use crate::{referral::Store as ReferralStore, Command, DappStore, Error, Id, ReferralCode};
+use crate::{Command, Error, Id, ReadonlyDappStore, ReadonlyReferralStore, ReferralCode};
 
-pub trait Store: crate::FallibleApi {
+pub trait ReadonlyStore: crate::FallibleApi {
+    /// Gets the total earnings of a referral code.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn referrer_total_collected(
+        &self,
+        code: ReferralCode,
+    ) -> Result<Option<NonZeroU128>, Self::Error>;
+
+    /// Gets the total earnings of a referral code.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn referrer_dapp_collected(
+        &self,
+        dapp: &Id,
+        code: ReferralCode,
+    ) -> Result<Option<NonZeroU128>, Self::Error>;
+
+    /// Gets the total earnings collected on behalf of a dapp.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn dapp_total_collected(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error>;
+}
+
+pub trait MutableStore: crate::FallibleApi {
     /// Sets the total collected earnings for a referral code.
     ///
     /// # Errors
@@ -13,16 +43,6 @@ pub trait Store: crate::FallibleApi {
         code: ReferralCode,
         total: NonZeroU128,
     ) -> Result<(), Self::Error>;
-
-    /// Gets the total earnings of a referral code.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn referrer_total_collected(
-        &self,
-        code: ReferralCode,
-    ) -> Result<Option<NonZeroU128>, Self::Error>;
 
     /// Sets the collected earnings for a referral code per dApp.
     ///
@@ -36,17 +56,6 @@ pub trait Store: crate::FallibleApi {
         total: NonZeroU128,
     ) -> Result<(), Self::Error>;
 
-    /// Gets the total earnings of a referral code.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn referrer_dapp_collected(
-        &self,
-        dapp: &Id,
-        code: ReferralCode,
-    ) -> Result<Option<NonZeroU128>, Self::Error>;
-
     /// Sets the total earnings collected on behalf of a dapp.
     ///
     /// # Errors
@@ -57,13 +66,6 @@ pub trait Store: crate::FallibleApi {
         dapp: &Id,
         total: NonZeroU128,
     ) -> Result<(), Self::Error>;
-
-    /// Gets the total earnings collected on behalf of a dapp.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn dapp_total_collected(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error>;
 }
 
 pub trait Query: crate::FallibleApi {
@@ -84,12 +86,15 @@ pub trait Query: crate::FallibleApi {
 /// - The sender is not the owner of the referral code.
 /// - There are no earnings to collect.
 /// - There is an API error.
-pub fn referrer<Api: Store + Query + ReferralStore + DappStore>(
+pub fn referrer<Api>(
     api: &mut Api,
     sender: Id,
     dapp: &Id,
     code: ReferralCode,
-) -> Result<[Command; 2], Error<Api::Error>> {
+) -> Result<[Command; 2], Error<Api::Error>>
+where
+    Api: ReadonlyStore + MutableStore + Query + ReadonlyReferralStore + ReadonlyDappStore,
+{
     let Some(referrer_owner) = api.owner_of(code)? else {
         return Err(Error::ReferralCodeNotRegistered);
     };
@@ -140,11 +145,10 @@ pub fn referrer<Api: Store + Query + ReferralStore + DappStore>(
 /// - The sender is not either the dApp or it's nominated collector.
 /// - There are no rewards to collect.
 /// - There is an API error.
-pub fn dapp<Api: Store + Query + ReferralStore + DappStore>(
-    api: &mut Api,
-    sender: Id,
-    dapp: &Id,
-) -> Result<[Command; 2], Error<Api::Error>> {
+pub fn dapp<Api>(api: &mut Api, sender: Id, dapp: &Id) -> Result<[Command; 2], Error<Api::Error>>
+where
+    Api: ReadonlyStore + MutableStore + Query + ReadonlyReferralStore + ReadonlyDappStore,
+{
     if &sender != dapp && sender != api.collector(dapp)? {
         return Err(Error::Unauthorized);
     }

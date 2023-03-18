@@ -1,6 +1,6 @@
 use std::num::NonZeroU128;
 
-use crate::{dapp::Query as DappQuery, dapp::Store as DappStore, Error, Id};
+use crate::{DappQuery, Error, Id, ReadonlyDappStore};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Code(u64);
@@ -22,7 +22,7 @@ impl From<u64> for Code {
     }
 }
 
-pub trait Store: crate::FallibleApi {
+pub trait ReadonlyStore: crate::FallibleApi {
     /// Checks whether the given `code` exists.
     ///
     /// # Errors
@@ -44,19 +44,42 @@ pub trait Store: crate::FallibleApi {
     /// This function will return an error depending on the implementor.
     fn owner_of(&self, code: Code) -> Result<Option<Id>, Self::Error>;
 
-    /// Sets the latest registered referral code.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn set_latest(&mut self, code: Code) -> Result<(), Self::Error>;
-
     /// Gets the latest registered referral code.
     ///
     /// # Errors
     ///
     /// This function will return an error depending on the implementor.
     fn latest(&self) -> Result<Option<Code>, Self::Error>;
+
+    /// Gets the total earnings of a referral code.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn total_earnings(&self, code: Code) -> Result<Option<NonZeroU128>, Self::Error>;
+
+    /// Gets the earnings of a referral code per dApp.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn dapp_earnings(&self, dapp: &Id, code: Code) -> Result<Option<NonZeroU128>, Self::Error>;
+
+    /// Gets the total contributions from a dApp to all referrers.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn dapp_contributions(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error>;
+}
+
+pub trait MutableStore: crate::FallibleApi {
+    /// Sets the latest registered referral code.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error depending on the implementor.
+    fn set_latest(&mut self, code: Code) -> Result<(), Self::Error>;
 
     /// Sets a referral code's owner, overwriting the previous owner if any.
     ///
@@ -79,13 +102,6 @@ pub trait Store: crate::FallibleApi {
     /// This function will return an error depending on the implementor.
     fn set_total_earnings(&mut self, code: Code, total: NonZeroU128) -> Result<(), Self::Error>;
 
-    /// Gets the total earnings of a referral code.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn total_earnings(&self, code: Code) -> Result<Option<NonZeroU128>, Self::Error>;
-
     /// Sets the earnings of a referral code per dApp.
     ///
     /// # Errors
@@ -98,13 +114,6 @@ pub trait Store: crate::FallibleApi {
         total: NonZeroU128,
     ) -> Result<(), Self::Error>;
 
-    /// Gets the earnings of a referral code per dApp.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn dapp_earnings(&self, dapp: &Id, code: Code) -> Result<Option<NonZeroU128>, Self::Error>;
-
     /// Sets the total contributions from a dApp to all referrers.
     ///
     /// # Errors
@@ -115,13 +124,6 @@ pub trait Store: crate::FallibleApi {
         dapp: &Id,
         contributions: NonZeroU128,
     ) -> Result<(), Self::Error>;
-
-    /// Gets the total contributions from a dApp to all referrers.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error depending on the implementor.
-    fn dapp_contributions(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error>;
 }
 
 /// Register for a referral code.
@@ -131,7 +133,10 @@ pub trait Store: crate::FallibleApi {
 /// This function will return an error if:
 /// - The sender already has a referral code.
 /// - There is an API error.
-pub fn register<Api: Store>(api: &mut Api, sender: Id) -> Result<Code, Error<Api::Error>> {
+pub fn register<Api>(api: &mut Api, sender: Id) -> Result<Code, Error<Api::Error>>
+where
+    Api: ReadonlyStore + MutableStore,
+{
     if api.owner_exists(&sender)? {
         return Err(Error::AlreadyRegistered);
     }
@@ -153,12 +158,15 @@ pub fn register<Api: Store>(api: &mut Api, sender: Id) -> Result<Code, Error<Api
 /// - The referral code is not registered.
 /// - The sender is not the current owner of the given code.
 /// - There is an API error.
-pub fn transfer_ownership<Api: Store>(
+pub fn transfer_ownership<Api>(
     api: &mut Api,
     sender: &Id,
     code: Code,
     new_owner: Id,
-) -> Result<(), Error<Api::Error>> {
+) -> Result<(), Error<Api::Error>>
+where
+    Api: ReadonlyStore + MutableStore,
+{
     let Some(current_owner) = api.owner_of(code)? else {
         return Err(Error::ReferralCodeNotRegistered);
     };
@@ -181,11 +189,10 @@ pub fn transfer_ownership<Api: Store>(
 /// - The referral code does not exist.
 /// - Calculated earnings/contributions overflow 128-bits.
 /// - There is an API error.
-pub fn record<Api: Store + DappQuery + DappStore>(
-    api: &mut Api,
-    sender: &Id,
-    code: Code,
-) -> Result<(), Error<Api::Error>> {
+pub fn record<Api>(api: &mut Api, sender: &Id, code: Code) -> Result<(), Error<Api::Error>>
+where
+    Api: ReadonlyStore + MutableStore + DappQuery + ReadonlyDappStore,
+{
     if !api.dapp_exists(sender)? {
         return Err(Error::DappNotRegistered);
     }

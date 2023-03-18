@@ -1,13 +1,15 @@
 #[cfg(test)]
 use referrals_core::referral;
-use referrals_core::{DappStore, ReferralCode, ReferralStore};
+use referrals_core::{
+    MutableReferralStore, ReadonlyDappStore, ReadonlyReferralStore, ReferralCode,
+};
 
 #[cfg(test)]
 use crate::{check, debug, expect, pretty};
 
 use super::*;
 
-impl ReferralStore for MockApi {
+impl ReadonlyReferralStore for MockApi {
     fn code_exists(&self, code: ReferralCode) -> Result<bool, Self::Error> {
         Ok(self.referral_code.map_or(false, |c| c == code.to_u64()))
     }
@@ -27,13 +29,33 @@ impl ReferralStore for MockApi {
         Ok(self.referral_code_owner.clone().map(Id::from))
     }
 
+    fn latest(&self) -> Result<Option<ReferralCode>, Self::Error> {
+        Ok(self.latest_referral_code.map(ReferralCode::from))
+    }
+
+    fn total_earnings(&self, code: ReferralCode) -> Result<Option<NonZeroU128>, Self::Error> {
+        assert!(self.code_exists(code)?);
+        Ok(NonZeroU128::new(self.code_total_earnings))
+    }
+
+    fn dapp_earnings(
+        &self,
+        _dapp: &Id,
+        code: ReferralCode,
+    ) -> Result<Option<NonZeroU128>, Self::Error> {
+        assert!(self.code_exists(code)?);
+        Ok(NonZeroU128::new(self.code_dapp_earnings))
+    }
+
+    fn dapp_contributions(&self, _dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
+        Ok(NonZeroU128::new(self.dapp_contributions))
+    }
+}
+
+impl MutableReferralStore for MockApi {
     fn set_latest(&mut self, code: ReferralCode) -> Result<(), Self::Error> {
         self.latest_referral_code = Some(code.to_u64());
         Ok(())
-    }
-
-    fn latest(&self) -> Result<Option<ReferralCode>, Self::Error> {
-        Ok(self.latest_referral_code.map(ReferralCode::from))
     }
 
     fn set_code_owner(&mut self, code: ReferralCode, owner: Id) -> Result<(), Self::Error> {
@@ -59,11 +81,6 @@ impl ReferralStore for MockApi {
         Ok(())
     }
 
-    fn total_earnings(&self, code: ReferralCode) -> Result<Option<NonZeroU128>, Self::Error> {
-        assert!(self.code_exists(code)?);
-        Ok(NonZeroU128::new(self.code_total_earnings))
-    }
-
     fn set_dapp_earnings(
         &mut self,
         dapp: &Id,
@@ -76,15 +93,6 @@ impl ReferralStore for MockApi {
         Ok(())
     }
 
-    fn dapp_earnings(
-        &self,
-        _dapp: &Id,
-        code: ReferralCode,
-    ) -> Result<Option<NonZeroU128>, Self::Error> {
-        assert!(self.code_exists(code)?);
-        Ok(NonZeroU128::new(self.code_dapp_earnings))
-    }
-
     fn set_dapp_contributions(
         &mut self,
         dapp: &Id,
@@ -93,10 +101,6 @@ impl ReferralStore for MockApi {
         assert!(self.dapp_exists(dapp)?);
         self.dapp_contributions = contributions.get();
         Ok(())
-    }
-
-    fn dapp_contributions(&self, _dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
-        Ok(NonZeroU128::new(self.dapp_contributions))
     }
 }
 
