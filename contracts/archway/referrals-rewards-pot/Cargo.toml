@@ -1,0 +1,15 @@
+[package]
+name = "archway-referrals-rewards-pot"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "contract.rs"
+crate-type = ["cdylib", "rlib"]
+test = false
+doctest = false
+
+[dependencies]
+cosmwasm-std.workspace = true
+
+referrals-archway-drivers.workspace = true
