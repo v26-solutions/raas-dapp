@@ -3,7 +3,7 @@
 
 use std::num::NonZeroU128;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(dbg_pls::DebugPls, Debug, thiserror::Error)]
 pub enum Error<Api> {
     #[error(transparent)]
     Api(#[from] Api),
@@ -46,7 +46,7 @@ pub use referral::ReadonlyStore as ReadonlyReferralStore;
 pub use collect::Query as CollectQuery;
 pub use dapp::Query as DappQuery;
 
-#[derive(Debug)]
+#[derive(dbg_pls::DebugPls, Debug)]
 pub enum Registration {
     /// Register for a referral code
     Referrer,
@@ -66,7 +66,7 @@ pub enum Registration {
     },
 }
 
-#[derive(Debug)]
+#[derive(dbg_pls::DebugPls, Debug)]
 pub enum Collection {
     /// Collect referrer earnings
     Referrer { dapp: Id, code: ReferralCode },
@@ -74,14 +74,14 @@ pub enum Collection {
     Dapp { dapp: Id },
 }
 
-#[derive(Debug)]
+#[derive(dbg_pls::DebugPls, Debug)]
 pub enum Configure {
     TransferReferralCodeOwnership { code: ReferralCode, owner: Id },
     DappMetadata { dapp: Id, metadata: DappMetadata },
     DappFee { dapp: Id, fee: NonZeroU128 },
 }
 
-#[derive(Debug)]
+#[derive(dbg_pls::DebugPls, Debug)]
 pub enum MsgKind {
     Register(Registration),
     /// Record a referral code invocation
@@ -92,13 +92,13 @@ pub enum MsgKind {
     Config(Configure),
 }
 
-#[derive(Debug)]
+#[derive(dbg_pls::DebugPls, Debug)]
 pub struct Msg {
     pub sender: Id,
     pub kind: MsgKind,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(dbg_pls::DebugPls, Debug, Clone, PartialEq)]
 pub enum Command {
     /// Create a rewards pot for the given dApp Id
     CreateRewardsPot(Id),
@@ -118,6 +118,7 @@ pub enum Command {
     WithdrawPending(Id),
 }
 
+#[derive(dbg_pls::DebugPls, Debug, Clone, PartialEq)]
 pub enum Reply {
     /// Nothing to do
     Empty,

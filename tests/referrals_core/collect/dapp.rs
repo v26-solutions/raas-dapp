@@ -17,13 +17,16 @@ fn works() {
     let res = collect::dapp(&mut api, Id::from("collector"), &Id::from("dapp")).unwrap();
 
     check(
-        debug_slice(&res),
+        pretty(&res),
         expect![[r#"
-                [
-                	WithdrawPending(Id("rewards_pot"))
-                	RedistributeRewards { amount: 6000, pot: Id("rewards_pot"), receiver: Id("collector") }
-                ]
-            "#]],
+            [
+                WithdrawPending(Id("rewards_pot")),
+                RedistributeRewards {
+                    amount: 6000,
+                    pot: Id("rewards_pot"),
+                    receiver: Id("collector"),
+                },
+            ]"#]],
     );
 
     check(
@@ -59,13 +62,16 @@ fn works() {
     let res = collect::dapp(&mut api, Id::from("dapp"), &Id::from("dapp")).unwrap();
 
     check(
-        debug_slice(&res),
+        pretty(&res),
         expect![[r#"
-                [
-                	WithdrawPending(Id("rewards_pot"))
-                	RedistributeRewards { amount: 6000, pot: Id("rewards_pot"), receiver: Id("dapp") }
-                ]
-            "#]],
+            [
+                WithdrawPending(Id("rewards_pot")),
+                RedistributeRewards {
+                    amount: 6000,
+                    pot: Id("rewards_pot"),
+                    receiver: Id("dapp"),
+                },
+            ]"#]],
     );
 
     check(

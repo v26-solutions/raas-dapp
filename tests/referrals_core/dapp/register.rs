@@ -13,7 +13,7 @@ pub fn works() {
     )
     .unwrap();
 
-    check(debug(res), expect![[r#"CreateRewardsPot(Id("dapp"))"#]]);
+    check(pretty(&res), expect![[r#"CreateRewardsPot(Id("dapp"))"#]]);
 
     check(
         pretty(&api),

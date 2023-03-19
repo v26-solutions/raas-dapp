@@ -18,14 +18,13 @@ pub fn works() {
     .unwrap();
 
     check(
-        debug_slice(&res),
+        pretty(&res),
         expect![[r#"
-                        [
-                        	WithdrawPending(Id("rewards_pot"))
-                        	SetRewardsRecipient(Id("new_recipient"))
-                        	SetRewardsAdmin(Id("new_admin"))
-                        ]
-                    "#]],
+            [
+                WithdrawPending(Id("rewards_pot")),
+                SetRewardsRecipient(Id("new_recipient")),
+                SetRewardsAdmin(Id("new_admin")),
+            ]"#]],
     );
 
     let from_dapp_res = dapp::deregister(

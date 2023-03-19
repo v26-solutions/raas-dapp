@@ -5,7 +5,7 @@ pub trait FallibleApi {
     type Error: StdError;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(dbg_pls::DebugPls, Debug, Clone, PartialEq)]
 pub struct Id(String);
 
 impl Id {
@@ -41,7 +41,7 @@ impl AsRef<String> for Id {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(dbg_pls::DebugPls, Debug, Clone, Copy)]
 pub struct NonZeroPercent(u8);
 
 impl NonZeroPercent {

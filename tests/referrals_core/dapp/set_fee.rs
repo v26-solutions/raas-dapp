@@ -13,8 +13,12 @@ pub fn works() {
     .unwrap();
 
     check(
-        debug(&res),
-        expect![[r#"SetDappFee { dapp: Id("dapp"), amount: 1000 }"#]],
+        pretty(&res),
+        expect![[r#"
+            SetDappFee {
+                dapp: Id("dapp"),
+                amount: 1000,
+            }"#]],
     );
 
     let from_dapp_res =

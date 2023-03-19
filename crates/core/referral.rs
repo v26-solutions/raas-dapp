@@ -2,7 +2,7 @@ use std::num::NonZeroU128;
 
 use crate::{DappQuery, Error, Id, ReadonlyDappStore};
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(dbg_pls::DebugPls, Debug, Default, Clone, Copy, PartialEq)]
 pub struct Code(u64);
 
 impl Code {

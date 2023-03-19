@@ -7,7 +7,7 @@ pub fn works() {
     let res = dapp::set_rewards_pot(&mut api, &Id::from("dapp"), Id::from("rewards_pot")).unwrap();
 
     check(
-        debug(res),
+        pretty(&res),
         expect![[r#"SetRewardsRecipient(Id("rewards_pot"))"#]],
     );
 

@@ -11,6 +11,7 @@ doctest = false
 thiserror.workspace = true
 kv-storage.workspace = true
 cosmwasm-std.workspace = true
+dbg-pls.workspace = true
 
 referrals-core.workspace = true
 referrals-storage.workspace = true
@@ -19,7 +20,6 @@ referrals-cw.workspace = true
 referrals-parse-cw.workspace = true
 
 expect-test = "1.4.1"
-dbg-pls = { version = "0.3.5", features = ["pretty", "derive"] }
 ron = { version = "0.8.0", features = [ "integer128" ] }
 serde = "1.0.157"
 

@@ -2,7 +2,7 @@ use cosmwasm_std::{testing::MockApi, Addr, MessageInfo};
 use referrals_cw::ExecuteMsg;
 use referrals_parse_cw::parse_exec;
 
-use crate::{check, debug, expect};
+use crate::{check, expect, pretty};
 
 #[test]
 fn register_referrer() {
@@ -15,8 +15,12 @@ fn register_referrer() {
     let res = parse_exec(&mock_api, msg_info, ExecuteMsg::RegisterReferrer {}).unwrap();
 
     check(
-        debug(res),
-        expect![[r#"Msg { sender: Id("sender"), kind: Register(Referrer) }"#]],
+        pretty(&res),
+        expect![[r#"
+            Msg {
+                sender: Id("sender"),
+                kind: Register(Referrer),
+            }"#]],
     );
 }
 
@@ -43,10 +47,16 @@ mod register_dapp {
         .unwrap();
 
         check(
-            debug(res),
-            expect![[
-                r#"Msg { sender: Id("sender"), kind: Register(Dapp { name: "dapp", percent: NonZeroPercent(100), collector: Id("collector") }) }"#
-            ]],
+            pretty(&res),
+            expect![[r#"
+                Msg {
+                    sender: Id("sender"),
+                    kind: Register(Dapp {
+                        name: "dapp",
+                        percent: NonZeroPercent(100),
+                        collector: Id("collector"),
+                    }),
+                }"#]],
         );
     }
 
@@ -140,10 +150,16 @@ mod deregister_dapp {
         .unwrap();
 
         check(
-            debug(res),
-            expect![[
-                r#"Msg { sender: Id("sender"), kind: Register(DeregisterDapp { dapp: Id("dapp"), rewards_admin: Id("rewards_admin"), rewards_recipient: Id("new_recipient") }) }"#
-            ]],
+            pretty(&res),
+            expect![[r#"
+                Msg {
+                    sender: Id("sender"),
+                    kind: Register(DeregisterDapp {
+                        dapp: Id("dapp"),
+                        rewards_admin: Id("rewards_admin"),
+                        rewards_recipient: Id("new_recipient"),
+                    }),
+                }"#]],
         );
     }
 
@@ -234,8 +250,12 @@ fn record_referral() {
     let res = parse_exec(&mock_api, msg_info, ExecuteMsg::RecordReferral { code: 1 }).unwrap();
 
     check(
-        debug(res),
-        expect![[r#"Msg { sender: Id("sender"), kind: Referral { code: Code(1) } }"#]],
+        pretty(&res),
+        expect![[r#"
+            Msg {
+                sender: Id("sender"),
+                kind: Referral { code: Code(1) },
+            }"#]],
     );
 }
 
@@ -261,10 +281,15 @@ mod collect_referrer {
         .unwrap();
 
         check(
-            debug(res),
-            expect![[
-                r#"Msg { sender: Id("sender"), kind: Collect(Referrer { dapp: Id("dapp"), code: Code(1) }) }"#
-            ]],
+            pretty(&res),
+            expect![[r#"
+                Msg {
+                    sender: Id("sender"),
+                    kind: Collect(Referrer {
+                        dapp: Id("dapp"),
+                        code: Code(1),
+                    }),
+                }"#]],
         );
     }
 
@@ -314,8 +339,12 @@ mod collect_dapp {
         .unwrap();
 
         check(
-            debug(res),
-            expect![[r#"Msg { sender: Id("sender"), kind: Collect(Dapp { dapp: Id("dapp") }) }"#]],
+            pretty(&res),
+            expect![[r#"
+                Msg {
+                    sender: Id("sender"),
+                    kind: Collect(Dapp { dapp: Id("dapp") }),
+                }"#]],
         );
     }
 
@@ -365,10 +394,15 @@ mod transfer_ownership {
         .unwrap();
 
         check(
-            debug(res),
-            expect![[
-                r#"Msg { sender: Id("sender"), kind: Config(TransferReferralCodeOwnership { code: Code(1), owner: Id("new_owner") }) }"#
-            ]],
+            pretty(&res),
+            expect![[r#"
+                Msg {
+                    sender: Id("sender"),
+                    kind: Config(TransferReferralCodeOwnership {
+                        code: Code(1),
+                        owner: Id("new_owner"),
+                    }),
+                }"#]],
         );
     }
 
@@ -421,10 +455,19 @@ mod configure_dapp {
         .unwrap();
 
         check(
-            debug(res),
-            expect![[
-                r#"Msg { sender: Id("sender"), kind: Config(DappMetadata { dapp: Id("dapp"), metadata: Metadata { percent: Some(NonZeroPercent(100)), collector: Some(Id("new_collector")), repo_url: None } }) }"#
-            ]],
+            pretty(&res),
+            expect![[r#"
+                Msg {
+                    sender: Id("sender"),
+                    kind: Config(DappMetadata {
+                        dapp: Id("dapp"),
+                        metadata: Metadata {
+                            percent: Some(NonZeroPercent(100)),
+                            collector: Some(Id("new_collector")),
+                            repo_url: None,
+                        },
+                    }),
+                }"#]],
         );
     }
 

@@ -6,7 +6,7 @@ pub fn works() {
 
     let res = referral::register(&mut api, Id::from("referrer")).unwrap();
 
-    check(debug(res), expect!["Code(1)"]);
+    check(pretty(&res), expect!["Code(1)"]);
 
     check(
         pretty(&api),

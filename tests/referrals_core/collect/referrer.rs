@@ -26,13 +26,16 @@ fn works() {
     .unwrap();
 
     check(
-        debug_slice(&res),
+        pretty(&res),
         expect![[r#"
             [
-            	WithdrawPending(Id("rewards_pot"))
-            	RedistributeRewards { amount: 5000, pot: Id("rewards_pot"), receiver: Id("referrer") }
-            ]
-        "#]],
+                WithdrawPending(Id("rewards_pot")),
+                RedistributeRewards {
+                    amount: 5000,
+                    pot: Id("rewards_pot"),
+                    receiver: Id("referrer"),
+                },
+            ]"#]],
     );
 
     check(
@@ -75,13 +78,16 @@ fn works() {
     .unwrap();
 
     check(
-        debug_slice(&res),
+        pretty(&res),
         expect![[r#"
-                [
-                	WithdrawPending(Id("rewards_pot"))
-                	RedistributeRewards { amount: 2000, pot: Id("rewards_pot"), receiver: Id("referrer") }
-                ]
-            "#]],
+            [
+                WithdrawPending(Id("rewards_pot")),
+                RedistributeRewards {
+                    amount: 2000,
+                    pot: Id("rewards_pot"),
+                    receiver: Id("referrer"),
+                },
+            ]"#]],
     );
 
     check(

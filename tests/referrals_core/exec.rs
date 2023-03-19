@@ -2,7 +2,7 @@ use referrals_core::{
     exec, Collection, Configure, DappMetadata, Id, Msg, MsgKind, ReferralCode, Registration, Reply,
 };
 
-use crate::{check, debug_slice, expect};
+use crate::{check, expect, pretty};
 
 use super::*;
 
@@ -91,10 +91,13 @@ fn collect_earnings_post_deregister() {
         res,
         expect![[r#"
             [
-            	WithdrawPending(Id("rewards_pot"))
-            	RedistributeRewards { amount: 500, pot: Id("rewards_pot"), receiver: Id("referrer") }
-            ]
-        "#]],
+                WithdrawPending(Id("rewards_pot")),
+                RedistributeRewards {
+                    amount: 500,
+                    pot: Id("rewards_pot"),
+                    receiver: Id("referrer"),
+                },
+            ]"#]],
     );
 
     let res = exec_msg_ok!(
@@ -109,10 +112,13 @@ fn collect_earnings_post_deregister() {
         res,
         expect![[r#"
             [
-            	WithdrawPending(Id("rewards_pot"))
-            	RedistributeRewards { amount: 722, pot: Id("rewards_pot"), receiver: Id("collector") }
-            ]
-        "#]],
+                WithdrawPending(Id("rewards_pot")),
+                RedistributeRewards {
+                    amount: 722,
+                    pot: Id("rewards_pot"),
+                    receiver: Id("collector"),
+                },
+            ]"#]],
     );
 }
 
@@ -223,11 +229,14 @@ fn msg_routing() {
     check(
         res,
         expect![[r#"
-                [
-                	WithdrawPending(Id("rewards_pot"))
-                	RedistributeRewards { amount: 750, pot: Id("rewards_pot"), receiver: Id("referrer2") }
-                ]
-            "#]],
+            [
+                WithdrawPending(Id("rewards_pot")),
+                RedistributeRewards {
+                    amount: 750,
+                    pot: Id("rewards_pot"),
+                    receiver: Id("referrer2"),
+                },
+            ]"#]],
     );
 
     api.set_dapp_total_rewards(1333);
@@ -268,11 +277,14 @@ fn msg_routing() {
     check(
         res,
         expect![[r#"
-                [
-                	WithdrawPending(Id("rewards_pot"))
-                	RedistributeRewards { amount: 583, pot: Id("rewards_pot"), receiver: Id("collector") }
-                ]
-            "#]],
+            [
+                WithdrawPending(Id("rewards_pot")),
+                RedistributeRewards {
+                    amount: 583,
+                    pot: Id("rewards_pot"),
+                    receiver: Id("collector"),
+                },
+            ]"#]],
     );
 
     let res = exec_msg_ok!(
@@ -288,12 +300,11 @@ fn msg_routing() {
     check(
         res,
         expect![[r#"
-                [
-                	WithdrawPending(Id("rewards_pot"))
-                	SetRewardsRecipient(Id("collector"))
-                	SetRewardsAdmin(Id("collector"))
-                ]
-            "#]],
+            [
+                WithdrawPending(Id("rewards_pot")),
+                SetRewardsRecipient(Id("collector")),
+                SetRewardsAdmin(Id("collector")),
+            ]"#]],
     );
 }
 
@@ -304,7 +315,7 @@ impl std::fmt::Display for DisplayReply {
             Reply::ReferralCode(code) => write!(f, "{{ code: {} }}", code.to_u64()),
             Reply::Cmd(cmd) => write!(f, "{cmd:?}"),
             Reply::MultiCmd(cmds) => {
-                write!(f, "{}", debug_slice(cmds))
+                write!(f, "{}", pretty(cmds))
             }
         }
     }

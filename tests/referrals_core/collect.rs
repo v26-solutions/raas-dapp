@@ -5,7 +5,7 @@ use referrals_core::{
 };
 
 #[cfg(test)]
-use crate::{check, debug_slice, expect, pretty};
+use crate::{check, expect, pretty};
 
 use super::*;
 

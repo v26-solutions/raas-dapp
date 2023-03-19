@@ -3,7 +3,7 @@ use referrals_core::dapp;
 use referrals_core::{DappQuery, MutableDappStore, ReadonlyDappStore};
 
 #[cfg(test)]
-use crate::{check, debug, debug_slice, expect, pretty};
+use crate::{check, expect, pretty};
 
 use super::*;
 

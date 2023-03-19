@@ -12,6 +12,8 @@ members = [
 
 [workspace.dependencies]
 thiserror = "1.0.38"
+# prettier debug
+dbg-pls = { version = "0.3.5", features = ["pretty", "derive"] }
 
 kv-storage = { git = "https://github.com/v26-solutions/kv-storage" }
 kv-storage-bincode = { git = "https://github.com/v26-solutions/kv-storage" }
