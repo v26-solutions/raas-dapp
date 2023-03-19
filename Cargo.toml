@@ -6,7 +6,8 @@ members = [
   "crates/cosmwasm/*", 
   "crates/cosmwasm/archway/*", 
   "contracts/archway/*", 
-  "tests" 
+  "tests", 
+  "xtask"
 ]
 
 [workspace.dependencies]

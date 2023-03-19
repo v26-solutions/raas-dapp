@@ -1,0 +1,16 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "xtask"
+path = "xtask.rs"
+test = false
+doctest = false
+
+[dependencies]
+anyhow = "1.0.70"
+xshell = "0.2.3"
+
+clap = { version = "4.1.11", features = [ "derive" ] } 

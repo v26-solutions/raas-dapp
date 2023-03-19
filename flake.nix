@@ -24,6 +24,7 @@
               "rust-src"
               "rustc"
               "rustfmt"
+              "llvm-tools-preview"
             ])          
         ];
       in
@@ -35,6 +36,8 @@
             rust-analyzer-nightly
             taplo
             cargo-expand
+            cargo-llvm-cov
+            cargo-watch
           ];
         };
       }
