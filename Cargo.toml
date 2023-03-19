@@ -1,6 +1,6 @@
 [workspace]
-# deeper = more platform specific
 members = [ 
+  # deeper the crate = more platform specific
   "crates/core", 
   "crates/storage", 
   "crates/cosmwasm/*", 
@@ -18,12 +18,14 @@ kv-storage-cosmwasm = { git = "https://github.com/v26-solutions/kv-storage" }
 cosmwasm-schema = "1.2.2"
 cosmwasm-std = "1.2.2"
 
-archway-bindings = { git = "https://github.com/chris-ricketts/archway-bindings" }
+archway-bindings = { git = "https://github.com/archway-network/archway-bindings" }
 
+# crates in workspace
 referrals-core = { path = "crates/core" }
 referrals-storage = { path = "crates/storage" }
+
 referrals-cw = { path = "crates/cosmwasm/iface" }
 referrals-parse-cw = { path = "crates/cosmwasm/parse" }
 
-archway-referrals = { path = "crates/cosmwasm/archway" }
-archway-rewards-pot = { path = "crates/cosmwasm/archway/rewards-pot" }
+referrals-archway = { path = "crates/cosmwasm/archway" }
+referrals-archway-drivers = { path = "crates/cosmwasm/archway/drivers" }

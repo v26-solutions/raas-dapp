@@ -1,35 +1,21 @@
-#![deny(clippy::all)]
-#![warn(clippy::pedantic)]
-
-pub mod core_deps_impl;
-
-use std::num::NonZeroU128;
-
 use archway_bindings::ArchwayMsg;
 use cosmwasm_std::{
-    Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError as CwStdError,
-    Storage as CwStorage, SubMsg, WasmMsg,
+    Binary, Env, MessageInfo, Reply, StdError as CwStdError, Storage as CwStorage, SubMsg, WasmMsg,
 };
 
-use kv_storage::{item, map, Error as KvStoreError, Item, KvStore, Map};
-use kv_storage_bincode::{Bincode, Error as BincodeError};
-use kv_storage_cosmwasm::{Error as CwRepoError, Mutable, Readonly};
-
-use referrals_core::{
-    Command as CoreCmd, Error as CoreError, Id, Msg as CoreMsg, Reply as CoreReply,
-};
+use referrals_core::{Command as CoreCmd, Error as CoreError, Msg as CoreMsg, Reply as CoreReply};
 use referrals_cw::rewards_pot::{ExecuteMsg as PotExecMsg, InstantiateMsg as PotInitMsg};
-use referrals_cw::{ExecuteMsg, InstantiateMsg, QueryMsg, ReferralCodeResponse};
+use referrals_cw::ReferralCodeResponse;
 use referrals_parse_cw::Error as ParseError;
 
-use core_deps_impl::{CoreDeps, Error as CoreDepsError};
+pub use referrals_cw::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
-pub(crate) type MutStore<'a> = KvStore<Bincode, Mutable<'a>>;
-pub(crate) type Store<'a> = KvStore<Bincode, Readonly<'a>>;
-pub(crate) type StoreError = KvStoreError<BincodeError, CwRepoError>;
-// workaround for lack of flat-fees on constantine-1 testnet
-// FIX: Next upgrade
-pub(crate) type DappFeesMap<'a> = Map<1024, &'a str, NonZeroU128>;
+use crate::{Deps, DepsMut, Response, StoreError};
+
+pub mod core_deps_impl;
+pub mod state;
+
+use core_deps_impl::{CoreDeps, Error as CoreDepsError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -41,55 +27,24 @@ pub enum Error {
     Core(#[from] CoreError<CoreDepsError>),
     #[error(transparent)]
     CosmWasm(#[from] CwStdError),
-    #[error("rewards pot code ID not set")]
-    CodeIdNotSet,
-}
-
-static REWARD_POT_CODE_ID: Item<u64> = item!("reward_pot_code_id");
-static REWARD_POT_COUNT: Item<u64> = item!("reward_pot_count");
-static DAPP_FEES: DappFeesMap = map!("dapp_fees");
-
-fn set_reward_pot_code_id(storage: &mut dyn CwStorage, code_id: u64) -> Result<(), Error> {
-    REWARD_POT_CODE_ID.save(&mut MutStore::from_repo(storage), &code_id)?;
-    Ok(())
-}
-
-fn reward_pot_code_id(storage: &dyn CwStorage) -> Result<u64, Error> {
-    REWARD_POT_CODE_ID
-        .may_load(&Store::from_repo(storage))?
-        .ok_or(Error::CodeIdNotSet)
-}
-
-// workaround for lack of flat-fees on constantine-1 testnet
-// FIX: Next upgrade
-fn set_dapp_fee(storage: &mut dyn CwStorage, dapp: &Id, fee: NonZeroU128) -> Result<(), Error> {
-    DAPP_FEES.save(&mut MutStore::from_repo(storage), &dapp.as_ref(), &fee)?;
-    Ok(())
-}
-
-fn increment_reward_pot_count(storage: &mut dyn CwStorage) -> Result<u64, Error> {
-    let mut storage = MutStore::from_repo(storage);
-    let count = REWARD_POT_COUNT.may_load(&storage)?.unwrap_or_default();
-    REWARD_POT_COUNT.save(&mut storage, &(count + 1))?;
-    Ok(count)
 }
 
 fn core_exec(deps: &mut DepsMut, env: &Env, msg: CoreMsg) -> Result<CoreReply, Error> {
-    let mut core_deps = CoreDeps::new(deps.storage, env, &*deps.querier, DAPP_FEES);
+    let mut core_deps = CoreDeps::new(deps.storage, env, deps.querier);
     referrals_core::exec(&mut core_deps, msg).map_err(Error::from)
 }
 
 const CREATE_REWARDS_POT: u64 = 0;
 
 fn add_cmd(
-    deps: &mut DepsMut,
+    storage: &mut dyn CwStorage,
     cmd: CoreCmd,
-    response: Response<ArchwayMsg>,
-) -> Result<Response<ArchwayMsg>, Error> {
+    response: Response,
+) -> Result<Response, Error> {
     let response = match cmd {
         CoreCmd::CreateRewardsPot(dapp) => {
-            let code_id = reward_pot_code_id(deps.storage)?;
-            let count = increment_reward_pot_count(deps.storage)?;
+            let code_id = state::reward_pot_code_id(storage)?;
+            let count = state::increment_reward_pot_count(storage)?;
             let msg = cosmwasm_std::to_binary(&PotInitMsg {
                 dapp: dapp.into_string(),
             })?;
@@ -144,7 +99,7 @@ fn add_cmd(
         CoreCmd::SetDappFee { dapp, amount } => {
             // workaround for lack of flat-fees on constantine-1 testnet
             // FIX: Next upgrade
-            set_dapp_fee(deps.storage, &dapp, amount)?;
+            state::set_dapp_fee(storage, &dapp, amount)?;
             response
         }
     };
@@ -152,7 +107,16 @@ fn add_cmd(
     Ok(response)
 }
 
-fn handle_core_reply(deps: &mut DepsMut, reply: CoreReply) -> Result<Response<ArchwayMsg>, Error> {
+/// Translate a `referrals_core::Reply` into an archway cosmwasm `Response`.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - There is an issue with storage or cosmwasm serialisation
+pub fn translate_core_reply(
+    storage: &mut dyn CwStorage,
+    reply: CoreReply,
+) -> Result<Response, Error> {
     let response = Response::default();
 
     match reply {
@@ -166,11 +130,11 @@ fn handle_core_reply(deps: &mut DepsMut, reply: CoreReply) -> Result<Response<Ar
             Ok(response.set_data(data))
         }
 
-        CoreReply::Cmd(cmd) => add_cmd(deps, cmd, response),
+        CoreReply::Cmd(cmd) => add_cmd(storage, cmd, response),
 
         CoreReply::MultiCmd(cmds) => cmds
             .into_iter()
-            .try_fold(response, |response, cmd| add_cmd(deps, cmd, response)),
+            .try_fold(response, |response, cmd| add_cmd(storage, cmd, response)),
     }
 }
 
@@ -186,7 +150,7 @@ pub fn init(
     _info: &MessageInfo,
     msg: &InstantiateMsg,
 ) -> Result<Response, Error> {
-    set_reward_pot_code_id(deps.storage, msg.rewards_pot_code_id)?;
+    state::set_reward_pot_code_id(deps.storage, msg.rewards_pot_code_id)?;
     Ok(Response::default())
 }
 
@@ -202,30 +166,30 @@ pub fn execute(
     env: &Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response<ArchwayMsg>, Error> {
+) -> Result<Response, Error> {
     referrals_parse_cw::parse_exec(deps.api, info, msg)
         .map_err(Error::from)
         .and_then(|msg| core_exec(deps, env, msg))
-        .and_then(|reply| handle_core_reply(deps, reply))
+        .and_then(|reply| translate_core_reply(deps.storage, reply))
 }
 
 /// Handle the reply from any issued sub-messages.
 ///
 /// # Errors
 ///
-/// This function will return an error if the original request cannot be completed
-pub fn reply(deps: &mut DepsMut, env: &Env, reply: Reply) -> Result<Response<ArchwayMsg>, Error> {
+/// This function will return an error if the reply is invalid or there is a problem with `cosmwasm_std` storage or serialization
+pub fn reply(deps: &mut DepsMut, env: &Env, reply: Reply) -> Result<Response, Error> {
     referrals_parse_cw::parse_init_pot_reply(reply)
         .map_err(Error::from)
         .and_then(|msg| core_exec(deps, env, msg))
-        .and_then(|reply| handle_core_reply(deps, reply))
+        .and_then(|reply| translate_core_reply(deps.storage, reply))
 }
 
 /// Handle a `referrals_cw::QueryMsg`.
 ///
 /// # Errors
 ///
-/// This function should only return an error if there is problem with `cosmwasm_std` storage or serialization
+/// This function should only return an error if there is a problem with `cosmwasm_std` storage or serialization
 pub fn query(_deps: &Deps, _env: &Env, _msg: &QueryMsg) -> Result<Binary, Error> {
     Ok(Binary::default())
 }

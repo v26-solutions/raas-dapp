@@ -1,6 +1,6 @@
 use std::num::NonZeroU128;
 
-use cosmwasm_std::{Env, Querier, QuerierWrapper, StdError, Storage as CwStorage};
+use cosmwasm_std::{Env, StdError, Storage as CwStorage};
 
 use archway_bindings::{types::rewards::ContractMetadataResponse, ArchwayQuery};
 
@@ -12,7 +12,7 @@ use referrals_core::{
 use referrals_cw::rewards_pot::{AdminResponse, QueryMsg as RewardsPotQuery, TotalRewardsResponse};
 use referrals_storage::{Error as CoreStorageError, Storage as CoreStorage};
 
-use crate::{DappFeesMap, MutStore, StoreError};
+use crate::{MutStore, Querier, Store, StoreError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -26,28 +26,28 @@ pub enum Error {
     DappFeeNotSet,
 }
 
-pub(crate) struct CoreDeps<'a> {
-    storage: CoreStorage<MutStore<'a>>,
+pub struct CoreDeps<'a> {
+    storage: &'a mut dyn CwStorage,
     env: &'a Env,
-    querier: QuerierWrapper<'a, ArchwayQuery>,
-    // workaround for lack of flat-fees on constantine-1 testnet
-    // FIX: Next upgrade
-    dapp_fees: DappFeesMap<'a>,
+    querier: Querier<'a>,
 }
 
 impl<'a> CoreDeps<'a> {
-    pub fn new(
-        storage: &'a mut dyn CwStorage,
-        env: &'a Env,
-        querier: &'a dyn Querier,
-        dapp_fees: DappFeesMap<'a>,
-    ) -> Self {
+    pub fn new(storage: &'a mut dyn CwStorage, env: &'a Env, querier: Querier<'a>) -> Self {
         Self {
-            storage: CoreStorage::new(MutStore::from_repo(storage)),
+            storage,
             env,
-            querier: QuerierWrapper::new(querier),
-            dapp_fees,
+            querier,
         }
+    }
+
+    #[must_use]
+    pub fn core_storage(&self) -> CoreStorage<Store<'_>> {
+        CoreStorage::new(Store::from_repo(self.storage as &dyn CwStorage))
+    }
+
+    pub fn core_storage_mut(&mut self) -> CoreStorage<MutStore<'_>> {
+        CoreStorage::new(MutStore::from_repo(self.storage as &mut dyn CwStorage))
     }
 }
 
@@ -77,9 +77,7 @@ impl<'a> DappQuery for CoreDeps<'a> {
     fn current_fee(&self, id: &Id) -> Result<NonZeroU128, Self::Error> {
         // workaround for lack of flat-fees on constantine-1 testnet
         // FIX: Next upgrade
-        self.dapp_fees
-            .may_load(self.storage.inner(), &id.as_ref())?
-            .ok_or(Error::DappFeeNotSet)
+        super::state::dapp_fee(self.storage, id)?.ok_or(Error::DappFeeNotSet)
     }
 }
 
@@ -96,51 +94,57 @@ impl<'a> CollectQuery for CoreDeps<'a> {
 
 impl<'a> ReadonlyDappStore for CoreDeps<'a> {
     fn dapp_exists(&self, id: &Id) -> Result<bool, Self::Error> {
-        self.storage.dapp_exists(id).map_err(Error::from)
+        self.core_storage().dapp_exists(id).map_err(Error::from)
     }
 
     fn percent(&self, id: &Id) -> Result<NonZeroPercent, Self::Error> {
-        self.storage.percent(id).map_err(Error::from)
+        self.core_storage().percent(id).map_err(Error::from)
     }
 
     fn collector(&self, id: &Id) -> Result<Id, Self::Error> {
-        self.storage.collector(id).map_err(Error::from)
+        self.core_storage().collector(id).map_err(Error::from)
     }
 
     fn has_rewards_pot(&self, id: &Id) -> Result<bool, Self::Error> {
-        self.storage.has_rewards_pot(id).map_err(Error::from)
+        self.core_storage().has_rewards_pot(id).map_err(Error::from)
     }
 
     fn rewards_pot(&self, id: &Id) -> Result<Id, Self::Error> {
-        self.storage.rewards_pot(id).map_err(Error::from)
+        self.core_storage().rewards_pot(id).map_err(Error::from)
     }
 }
 
 impl<'a> MutableDappStore for CoreDeps<'a> {
     fn add_dapp(&mut self, id: &Id, name: String) -> Result<(), Self::Error> {
-        self.storage.add_dapp(id, name).map_err(Error::from)
+        self.core_storage_mut()
+            .add_dapp(id, name)
+            .map_err(Error::from)
     }
 
     fn remove_dapp(&mut self, id: &Id) -> Result<(), Self::Error> {
-        self.storage.remove_dapp(id).map_err(Error::from)
+        self.core_storage_mut().remove_dapp(id).map_err(Error::from)
     }
 
     fn set_percent(&mut self, id: &Id, percent: NonZeroPercent) -> Result<(), Self::Error> {
-        self.storage.set_percent(id, percent).map_err(Error::from)
+        self.core_storage_mut()
+            .set_percent(id, percent)
+            .map_err(Error::from)
     }
 
     fn set_collector(&mut self, id: &Id, collector: Id) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .set_collector(id, collector)
             .map_err(Error::from)
     }
 
     fn set_repo_url(&mut self, id: &Id, repo_url: String) -> Result<(), Self::Error> {
-        self.storage.set_repo_url(id, repo_url).map_err(Error::from)
+        self.core_storage_mut()
+            .set_repo_url(id, repo_url)
+            .map_err(Error::from)
     }
 
     fn set_rewards_pot(&mut self, id: &Id, rewards_pot: Id) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .set_rewards_pot(id, rewards_pot)
             .map_err(Error::from)
     }
@@ -148,23 +152,25 @@ impl<'a> MutableDappStore for CoreDeps<'a> {
 
 impl<'a> ReadonlyReferralStore for CoreDeps<'a> {
     fn code_exists(&self, code: ReferralCode) -> Result<bool, Self::Error> {
-        self.storage.code_exists(code).map_err(Error::from)
+        self.core_storage().code_exists(code).map_err(Error::from)
     }
 
     fn owner_exists(&self, owner: &Id) -> Result<bool, Self::Error> {
-        self.storage.owner_exists(owner).map_err(Error::from)
+        self.core_storage().owner_exists(owner).map_err(Error::from)
     }
 
     fn owner_of(&self, code: ReferralCode) -> Result<Option<Id>, Self::Error> {
-        self.storage.owner_of(code).map_err(Error::from)
+        self.core_storage().owner_of(code).map_err(Error::from)
     }
 
     fn latest(&self) -> Result<Option<ReferralCode>, Self::Error> {
-        self.storage.latest().map_err(Error::from)
+        self.core_storage().latest().map_err(Error::from)
     }
 
     fn total_earnings(&self, code: ReferralCode) -> Result<Option<NonZeroU128>, Self::Error> {
-        self.storage.total_earnings(code).map_err(Error::from)
+        self.core_storage()
+            .total_earnings(code)
+            .map_err(Error::from)
     }
 
     fn dapp_earnings(
@@ -172,27 +178,33 @@ impl<'a> ReadonlyReferralStore for CoreDeps<'a> {
         dapp: &Id,
         code: ReferralCode,
     ) -> Result<Option<NonZeroU128>, Self::Error> {
-        self.storage.dapp_earnings(dapp, code).map_err(Error::from)
+        self.core_storage()
+            .dapp_earnings(dapp, code)
+            .map_err(Error::from)
     }
 
     fn dapp_contributions(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
-        self.storage.dapp_contributions(dapp).map_err(Error::from)
+        self.core_storage()
+            .dapp_contributions(dapp)
+            .map_err(Error::from)
     }
 }
 
 impl<'a> MutableReferralStore for CoreDeps<'a> {
     fn set_latest(&mut self, code: ReferralCode) -> Result<(), Self::Error> {
-        self.storage.set_latest(code).map_err(Error::from)
+        self.core_storage_mut()
+            .set_latest(code)
+            .map_err(Error::from)
     }
 
     fn set_code_owner(&mut self, code: ReferralCode, owner: Id) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .set_code_owner(code, owner)
             .map_err(Error::from)
     }
 
     fn increment_invocations(&mut self, dapp: &Id, code: ReferralCode) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .increment_invocations(dapp, code)
             .map_err(Error::from)
     }
@@ -202,7 +214,7 @@ impl<'a> MutableReferralStore for CoreDeps<'a> {
         code: ReferralCode,
         total: NonZeroU128,
     ) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .set_total_earnings(code, total)
             .map_err(Error::from)
     }
@@ -213,7 +225,7 @@ impl<'a> MutableReferralStore for CoreDeps<'a> {
         code: ReferralCode,
         total: NonZeroU128,
     ) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .set_dapp_earnings(dapp, code, total)
             .map_err(Error::from)
     }
@@ -223,7 +235,7 @@ impl<'a> MutableReferralStore for CoreDeps<'a> {
         dapp: &Id,
         contributions: NonZeroU128,
     ) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .set_dapp_contributions(dapp, contributions)
             .map_err(Error::from)
     }
@@ -234,7 +246,7 @@ impl<'a> ReadonlyCollectStore for CoreDeps<'a> {
         &self,
         code: ReferralCode,
     ) -> Result<Option<NonZeroU128>, Self::Error> {
-        self.storage
+        self.core_storage()
             .referrer_total_collected(code)
             .map_err(Error::from)
     }
@@ -244,13 +256,15 @@ impl<'a> ReadonlyCollectStore for CoreDeps<'a> {
         dapp: &Id,
         code: ReferralCode,
     ) -> Result<Option<NonZeroU128>, Self::Error> {
-        self.storage
+        self.core_storage()
             .referrer_dapp_collected(dapp, code)
             .map_err(Error::from)
     }
 
     fn dapp_total_collected(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
-        self.storage.dapp_total_collected(dapp).map_err(Error::from)
+        self.core_storage()
+            .dapp_total_collected(dapp)
+            .map_err(Error::from)
     }
 }
 
@@ -260,7 +274,7 @@ impl<'a> MutableCollectStore for CoreDeps<'a> {
         code: ReferralCode,
         total: NonZeroU128,
     ) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .set_referrer_total_collected(code, total)
             .map_err(Error::from)
     }
@@ -271,7 +285,7 @@ impl<'a> MutableCollectStore for CoreDeps<'a> {
         code: ReferralCode,
         total: NonZeroU128,
     ) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .set_referrer_dapp_collected(dapp, code, total)
             .map_err(Error::from)
     }
@@ -281,7 +295,7 @@ impl<'a> MutableCollectStore for CoreDeps<'a> {
         dapp: &Id,
         total: NonZeroU128,
     ) -> Result<(), Self::Error> {
-        self.storage
+        self.core_storage_mut()
             .set_dapp_total_collected(dapp, total)
             .map_err(Error::from)
     }

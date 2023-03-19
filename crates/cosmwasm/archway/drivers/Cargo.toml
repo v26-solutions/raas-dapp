@@ -1,10 +1,10 @@
 [package]
-name = "archway-rewards-pot"
+name = "referrals-archway-drivers"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-path = "driver.rs"
+path = "drivers.rs"
 test = false
 doctest = false
 
@@ -19,3 +19,4 @@ archway-bindings.workspace = true
 referrals-core.workspace = true
 referrals-storage.workspace = true
 referrals-cw.workspace = true
+referrals-parse-cw.workspace = true
