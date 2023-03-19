@@ -29,4 +29,6 @@ pub fn check(actual: impl ToString, expected: Expect) {
 
 pub mod referrals_core;
 #[cfg(test)]
+pub mod referrals_parse_cw;
+#[cfg(test)]
 pub mod referrals_storage;

@@ -46,6 +46,7 @@ pub use referral::ReadonlyStore as ReadonlyReferralStore;
 pub use collect::Query as CollectQuery;
 pub use dapp::Query as DappQuery;
 
+#[derive(Debug)]
 pub enum Registration {
     /// Register for a referral code
     Referrer,
@@ -65,6 +66,7 @@ pub enum Registration {
     },
 }
 
+#[derive(Debug)]
 pub enum Collection {
     /// Collect referrer earnings
     Referrer { dapp: Id, code: ReferralCode },
@@ -72,12 +74,14 @@ pub enum Collection {
     Dapp { dapp: Id },
 }
 
+#[derive(Debug)]
 pub enum Configure {
     TransferReferralCodeOwnership { code: ReferralCode, owner: Id },
     DappMetadata { dapp: Id, metadata: DappMetadata },
     DappFee { dapp: Id, fee: NonZeroU128 },
 }
 
+#[derive(Debug)]
 pub enum MsgKind {
     Register(Registration),
     /// Record a referral code invocation
@@ -88,6 +92,7 @@ pub enum MsgKind {
     Config(Configure),
 }
 
+#[derive(Debug)]
 pub struct Msg {
     pub sender: Id,
     pub kind: MsgKind,

@@ -2,6 +2,7 @@ use std::num::NonZeroU128;
 
 use crate::{Command, Error, Id, NonZeroPercent};
 
+#[derive(Debug)]
 pub struct Metadata {
     pub percent: Option<NonZeroPercent>,
     pub collector: Option<Id>,

@@ -10,3 +10,4 @@ doctest = false
 
 [dependencies]
 thiserror.workspace = true
+dbg-pls.workspace = true
