@@ -44,7 +44,7 @@ pub fn total_rewards_records(env: &Env, querier: Querier) -> Result<u64, Error> 
     let rewards_records_response: RewardsRecordsResponse = querier.query(
         &ArchwayQuery::rewards_records_with_pagination(
             &env.contract.address,
-            PageRequest::new().limit(1),
+            PageRequest::new().limit(0),
         )
         .into(),
     )?;
@@ -57,6 +57,7 @@ pub fn total_rewards_records(env: &Env, querier: Querier) -> Result<u64, Error> 
     Ok(total_records)
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct OutstandingRecords {
     total_records: u64,
     pending_records: u64,
@@ -201,10 +202,19 @@ pub fn query(deps: &Deps, env: &Env, msg: &QueryMsg) -> Result<Binary, Error> {
 
             let outstanding_records = outstanding_records(deps.storage, env, deps.querier)?;
 
+            if outstanding_records.pending_records == 0 {
+                return cosmwasm_std::to_binary(&TotalRewardsResponse {
+                    total: rewards_collected.into(),
+                })
+                .map_err(Error::from);
+            }
+
             let rewards_records_response: RewardsRecordsResponse = deps.querier.query(
                 &ArchwayQuery::rewards_records_with_pagination(
                     &env.contract.address,
-                    PageRequest::new().limit(outstanding_records.pending_records),
+                    PageRequest::new()
+                        .reverse()
+                        .limit(outstanding_records.pending_records),
                 )
                 .into(),
             )?;

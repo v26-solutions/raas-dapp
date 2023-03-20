@@ -239,6 +239,88 @@ mod deregister_dapp {
     }
 }
 
+mod set_dapp_fee {
+    use cosmwasm_std::Uint128;
+
+    use super::*;
+
+    #[test]
+    fn works() {
+        let mock_api = MockApi::default();
+        let msg_info = MessageInfo {
+            sender: Addr::unchecked("sender"),
+            funds: vec![],
+        };
+
+        let res = parse_exec(
+            &mock_api,
+            msg_info,
+            ExecuteMsg::SetDappFee {
+                dapp: "dapp".to_owned(),
+                fee: Uint128::new(1000),
+            },
+        )
+        .unwrap();
+
+        check(
+            pretty(&res),
+            expect![[r#"
+                Msg {
+                    sender: Id("sender"),
+                    kind: Config(DappFee {
+                        dapp: Id("dapp"),
+                        fee: 1000,
+                    }),
+                }"#]],
+        );
+    }
+
+    #[test]
+    fn invalid_dapp_fails() {
+        let mock_api = MockApi::default();
+        let msg_info = MessageInfo {
+            sender: Addr::unchecked("sender"),
+            funds: vec![],
+        };
+
+        let res = parse_exec(
+            &mock_api,
+            msg_info,
+            ExecuteMsg::SetDappFee {
+                dapp: "0".to_owned(),
+                fee: Uint128::new(1000),
+            },
+        )
+        .unwrap_err();
+
+        check(
+            res,
+            expect!["invalid address - Generic error: Invalid input: human address too short for this mock implementation (must be >= 3)."],
+        );
+    }
+
+    #[test]
+    fn invalid_fee_fails() {
+        let mock_api = MockApi::default();
+        let msg_info = MessageInfo {
+            sender: Addr::unchecked("sender"),
+            funds: vec![],
+        };
+
+        let res = parse_exec(
+            &mock_api,
+            msg_info,
+            ExecuteMsg::SetDappFee {
+                dapp: "dapp".to_owned(),
+                fee: Uint128::new(0),
+            },
+        )
+        .unwrap_err();
+
+        check(res, expect!["invalid fee - expected non-zero value"]);
+    }
+}
+
 #[test]
 fn record_referral() {
     let mock_api = MockApi::default();

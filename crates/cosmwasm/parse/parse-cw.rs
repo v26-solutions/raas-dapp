@@ -1,6 +1,8 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic)]
 
+use std::num::NonZeroU128;
+
 use cosmwasm_std::{Api, MessageInfo, Reply, StdError};
 
 use cw_utils::ParseReplyError;
@@ -17,6 +19,8 @@ pub enum Error {
     InvalidAddress(#[from] StdError),
     #[error("invalid percent - valid value is any integer between 1 & 100")]
     InvalidPercent,
+    #[error("invalid fee - expected non-zero value")]
+    InvalidFee,
     #[error(transparent)]
     Reply(#[from] ParseReplyError),
     #[error("invalid reply - expected data")]
@@ -56,6 +60,11 @@ pub fn parse_exec(
             dapp: api.addr_validate(&dapp).map(Id::from)?,
             rewards_admin: api.addr_validate(&rewards_admin).map(Id::from)?,
             rewards_recipient: api.addr_validate(&rewards_recipient).map(Id::from)?,
+        }),
+
+        ReferralsExecuteMsg::SetDappFee { dapp, fee } => CoreMsgKind::Config(Configure::DappFee {
+            dapp: api.addr_validate(&dapp).map(Id::from)?,
+            fee: NonZeroU128::new(fee.u128()).ok_or(Error::InvalidFee)?,
         }),
 
         ReferralsExecuteMsg::RecordReferral { code } => CoreMsgKind::Referral {

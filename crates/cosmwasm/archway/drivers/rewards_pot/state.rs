@@ -52,7 +52,7 @@ pub fn set_admin(storage: &mut dyn CwStorage, admin: &String) -> Result<(), Stor
 ///
 /// This function will return an error if there is an underlying storage issue.
 pub fn admin(storage: &dyn CwStorage) -> Result<String, StoreError> {
-    Ok(DAPP
+    Ok(ADMIN
         .may_load(&Store::from_repo(storage))?
         .expect("admin set during initialisation"))
 }
@@ -67,7 +67,7 @@ pub fn admin(storage: &dyn CwStorage) -> Result<String, StoreError> {
 ///
 /// This function will return an error if there is an underlying storage issue.
 pub fn is_admin(storage: &dyn CwStorage, account: &str) -> Result<bool, StoreError> {
-    Ok(DAPP
+    Ok(ADMIN
         .may_load(&Store::from_repo(storage))?
         .expect("admin set during initialisation")
         == account)

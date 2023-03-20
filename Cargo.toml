@@ -22,7 +22,7 @@ kv-storage-cosmwasm = { git = "https://github.com/v26-solutions/kv-storage" }
 cosmwasm-schema = "1.2.2"
 cosmwasm-std = "1.2.2"
 
-archway-bindings = { git = "https://github.com/archway-network/archway-bindings" }
+archway-bindings = { git = "https://github.com/chris-ricketts/archway-bindings" }
 
 # crates in workspace
 referrals-core = { path = "crates/core" }

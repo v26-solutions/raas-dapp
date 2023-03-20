@@ -11,3 +11,4 @@ doctest = false
 [dependencies]
 cosmwasm-schema.workspace = true
 cosmwasm-std.workspace = true
+dbg-pls.workspace = true

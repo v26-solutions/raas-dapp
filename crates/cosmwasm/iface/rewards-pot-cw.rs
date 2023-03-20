@@ -1,11 +1,13 @@
 use cosmwasm_std::Uint128;
 
 #[cosmwasm_schema::cw_serde]
+#[derive(dbg_pls::DebugPls)]
 pub struct InstantiateMsg {
     pub dapp: String,
 }
 
 #[cosmwasm_schema::cw_serde]
+#[derive(dbg_pls::DebugPls)]
 pub struct InstantiateResponse {
     pub dapp: String,
 }
@@ -19,7 +21,7 @@ pub enum ExecuteMsg {
 }
 
 #[cosmwasm_schema::cw_serde]
-#[derive(cosmwasm_schema::QueryResponses)]
+#[derive(dbg_pls::DebugPls, cosmwasm_schema::QueryResponses)]
 pub enum QueryMsg {
     #[returns(TotalRewardsResponse)]
     TotalRewards {},
@@ -37,13 +39,36 @@ pub struct TotalRewardsResponse {
 }
 
 #[cosmwasm_schema::cw_serde]
+#[derive(dbg_pls::DebugPls)]
 pub struct DappResponse {
     /// The dApp address for which the pot was created
     pub dapp: String,
 }
 
 #[cosmwasm_schema::cw_serde]
+#[derive(dbg_pls::DebugPls)]
 pub struct AdminResponse {
     /// The rewards pot admin address
     pub admin: String,
+}
+
+impl dbg_pls::DebugPls for ExecuteMsg {
+    fn fmt(&self, f: dbg_pls::Formatter<'_>) {
+        match self {
+            ExecuteMsg::WithdrawRewards {} => f.debug_ident("WithdrawRewards"),
+            ExecuteMsg::DistributeRewards { recipient, amount } => f
+                .debug_struct("DistibuteRewards")
+                .field("recipient", &recipient)
+                .field("amount", &amount.u128())
+                .finish(),
+        }
+    }
+}
+
+impl dbg_pls::DebugPls for TotalRewardsResponse {
+    fn fmt(&self, f: dbg_pls::Formatter<'_>) {
+        f.debug_struct("TotalRewardsResponse")
+            .field("total", &self.total.u128())
+            .finish();
+    }
 }

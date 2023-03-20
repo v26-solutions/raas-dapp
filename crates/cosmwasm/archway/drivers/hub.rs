@@ -29,7 +29,12 @@ pub enum Error {
     CosmWasm(#[from] CwStdError),
 }
 
-fn core_exec(deps: &mut DepsMut, env: &Env, msg: CoreMsg) -> Result<CoreReply, Error> {
+/// Forward a `referrals_core::Msg` to `referrals_core::exec`
+///
+/// # Errors
+///
+/// This function will return any errors encountered by `referrals_core`.
+pub fn core_exec(deps: &mut DepsMut, env: &Env, msg: CoreMsg) -> Result<CoreReply, Error> {
     let mut core_deps = CoreDeps::new(deps.storage, env, deps.querier);
     referrals_core::exec(&mut core_deps, msg).map_err(Error::from)
 }

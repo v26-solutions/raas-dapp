@@ -1,6 +1,8 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic)]
 
+use cosmwasm_std::Uint128;
+
 #[path = "rewards-pot-cw.rs"]
 pub mod rewards_pot;
 
@@ -33,6 +35,13 @@ pub enum ExecuteMsg {
         rewards_admin: String,
         /// Address of nominated rewards recipient
         rewards_recipient: String,
+    },
+    /// Set a dApp's flat fee
+    SetDappFee {
+        /// dApp address to set fee for
+        dapp: String,
+        /// Fee amount
+        fee: Uint128,
     },
     /// Record a referral
     RecordReferral {
@@ -72,6 +81,7 @@ pub enum ExecuteMsg {
 }
 
 #[cosmwasm_schema::cw_serde]
+#[derive(dbg_pls::DebugPls)]
 pub struct ReferralCodeResponse {
     /// Newly registered referral code
     pub code: u64,

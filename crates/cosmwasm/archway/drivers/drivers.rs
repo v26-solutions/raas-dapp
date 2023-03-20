@@ -14,6 +14,7 @@ pub type StoreError = KvStoreError<BincodeError, CwRepoError>;
 pub type Querier<'a> = QuerierWrapper<'a, ArchwayQuery>;
 pub type Deps<'a> = CwDeps<'a, ArchwayQuery>;
 pub type DepsMut<'a> = CwDepsMut<'a, ArchwayQuery>;
+pub type CustomMsg = ArchwayMsg;
 pub type Response = CwResponse<ArchwayMsg>;
 
 pub mod hub;

@@ -12,12 +12,15 @@ thiserror.workspace = true
 kv-storage.workspace = true
 cosmwasm-std.workspace = true
 dbg-pls.workspace = true
+archway-bindings.workspace = true
 
 referrals-core.workspace = true
 referrals-storage.workspace = true
 
 referrals-cw.workspace = true
 referrals-parse-cw.workspace = true
+
+referrals-archway-drivers.workspace = true
 
 expect-test = "1.4.1"
 ron = { version = "0.8.0", features = [ "integer128" ] }
