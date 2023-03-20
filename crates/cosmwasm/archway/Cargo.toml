@@ -10,5 +10,6 @@ doctest = false
 
 [dependencies]
 archway-bindings.workspace = true
+cosmwasm-std.workspace = true
 
 referrals-cw.workspace = true
