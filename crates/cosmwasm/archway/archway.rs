@@ -153,11 +153,11 @@ impl<Custom, Addr, Percent, Collector> HubMsg<Register<(), Percent, Collector>, 
     /// The name of the dApp registering
     pub fn dapp_name(
         self,
-        name: String,
+        name: impl Into<String>,
     ) -> HubMsg<Register<String, Percent, Collector>, Custom, Addr> {
         HubMsg {
             msg: Register {
-                name,
+                name: name.into(),
                 percent: self.msg.percent,
                 collector: self.msg.collector,
             },
@@ -185,9 +185,9 @@ impl<Custom, Addr, Name, Collector> HubMsg<Register<Name, (), Collector>, Custom
     }
 }
 
-impl<Addr, Name, Percent> HubMsg<Register<Name, Percent, ()>, Addr> {
+impl<Custom, Addr, Name, Percent> HubMsg<Register<Name, Percent, ()>, Custom, Addr> {
     /// The address of the authorised remaining dApp rewards collector
-    pub fn collector(self, collector: Addr) -> HubMsg<Register<Name, Percent, Addr>, Addr> {
+    pub fn collector(self, collector: Addr) -> HubMsg<Register<Name, Percent, Addr>, Custom, Addr> {
         HubMsg {
             msg: Register {
                 name: self.msg.name,

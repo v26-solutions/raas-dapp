@@ -3,12 +3,15 @@ use cosmwasm_std::{
     Binary, Env, MessageInfo, Reply, StdError as CwStdError, Storage as CwStorage, SubMsg, WasmMsg,
 };
 
+use referrals_archway::ResponseExt;
 use referrals_core::{Command as CoreCmd, Error as CoreError, Msg as CoreMsg, Reply as CoreReply};
 use referrals_cw::rewards_pot::{ExecuteMsg as PotExecMsg, InstantiateMsg as PotInitMsg};
-use referrals_cw::ReferralCodeResponse;
+use referrals_cw::{ExecuteMsg as HubExecuteMsg, ReferralCodeResponse, WithReferralCode};
 use referrals_parse_cw::Error as ParseError;
 
-pub use referrals_cw::{ExecuteMsg, InstantiateMsg, QueryMsg};
+pub use referrals_cw::{InstantiateMsg, QueryMsg};
+
+pub type ExecuteMsg = WithReferralCode<HubExecuteMsg>;
 
 use crate::{Deps, DepsMut, Response, StoreError};
 
@@ -151,12 +154,20 @@ pub fn translate_core_reply(
 /// - There is an issue with storage
 pub fn init(
     deps: &mut DepsMut,
-    _env: &Env,
-    _info: &MessageInfo,
+    env: Env,
+    info: MessageInfo,
     msg: &InstantiateMsg,
 ) -> Result<Response, Error> {
     state::set_reward_pot_code_id(deps.storage, msg.rewards_pot_code_id)?;
-    Ok(Response::default())
+
+    Response::default()
+        .register_dapp()
+        .referral_hub(env.contract.address)
+        .dapp_name("referrals_hub")
+        .referrer_percent(100)
+        .collector(info.sender)
+        .add()
+        .map_err(Error::from)
 }
 
 /// Handle a `referrals_cw::ExecuteMsg`
@@ -168,14 +179,23 @@ pub fn init(
 /// - There is an issue in `referrals_core`
 pub fn execute(
     deps: &mut DepsMut,
-    env: &Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, Error> {
-    referrals_parse_cw::parse_exec(deps.api, info, msg)
+    referrals_parse_cw::parse_exec(deps.api, info, msg.msg)
         .map_err(Error::from)
-        .and_then(|msg| core_exec(deps, env, msg))
+        .and_then(|msg| core_exec(deps, &env, msg))
         .and_then(|reply| translate_core_reply(deps.storage, reply))
+        .and_then(|response| match msg.referral_code {
+            Some(code) => response
+                .record_referral()
+                .referral_code(code)
+                .referral_hub(env.contract.address)
+                .add()
+                .map_err(Error::from),
+            None => Ok(response),
+        })
 }
 
 /// Handle the reply from any issued sub-messages.

@@ -25,4 +25,5 @@ referrals-archway-drivers.workspace = true
 expect-test = "1.4.1"
 ron = { version = "0.8.0", features = [ "integer128" ] }
 serde = "1.0.157"
+serde-json-wasm = "0.5.0"
 

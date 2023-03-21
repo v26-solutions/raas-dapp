@@ -12,7 +12,7 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, Error> {
-    hub::execute(&mut deps, &env, info, msg)
+    hub::execute(&mut deps, env, info, msg)
 }
 
 #[entry_point]

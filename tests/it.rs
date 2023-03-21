@@ -12,6 +12,9 @@ pub mod referrals_core;
 pub mod referrals_storage;
 
 #[cfg(test)]
+pub mod referrals_cw;
+
+#[cfg(test)]
 pub mod referrals_parse_cw;
 
 #[cfg(test)]

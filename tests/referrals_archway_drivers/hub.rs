@@ -4,13 +4,13 @@ use cosmwasm_std::{
     to_binary, Addr, ContractResult, QuerierResult, QueryResponse, Uint128, WasmQuery,
 };
 use referrals_archway_drivers::hub;
-use referrals_archway_drivers::hub::{ExecuteMsg, InstantiateMsg};
+use referrals_archway_drivers::hub::InstantiateMsg;
 use referrals_archway_drivers::rewards_pot::{
     ExecuteMsg as PotExecuteMsg, InstantiateMsg as PotInitMsg, QueryMsg as PotQueryMsg,
 };
 use referrals_core::Id;
 use referrals_cw::rewards_pot::{AdminResponse, DappResponse, TotalRewardsResponse};
-use referrals_cw::ReferralCodeResponse;
+use referrals_cw::{ExecuteMsg, ReferralCodeResponse, WithReferralCode};
 
 use crate::{check, expect, pretty};
 
@@ -70,8 +70,8 @@ macro_rules! env {
 }
 
 macro_rules! do_ok {
-    ($op:ident, $deps:ident, $from:expr, $msg:expr) => {{
-        hub::$op(&mut $deps.as_mut(), &env!(), $from, $msg)
+    ($op:ident, $deps:ident, $env:expr, $from:expr, $msg:expr) => {{
+        hub::$op(&mut $deps.as_mut(), $env, $from, $msg)
             .map(DisplayResponse::from)
             .unwrap()
     }};
@@ -79,13 +79,19 @@ macro_rules! do_ok {
 
 macro_rules! init_ok {
     ($deps:ident, $from:literal, $msg:expr) => {
-        do_ok!(init, $deps, &info!($from), &$msg)
+        do_ok!(init, $deps, env!(), info!($from), &$msg)
     };
 }
 
 macro_rules! exec_ok {
     ($deps:ident, $from:literal, $msg:expr) => {
-        do_ok!(execute, $deps, info!($from), $msg)
+        do_ok!(
+            execute,
+            $deps,
+            env!(),
+            info!($from),
+            WithReferralCode::from($msg)
+        )
     };
 }
 
@@ -95,7 +101,7 @@ fn plumbing_works() {
 
     deps.querier.update_wasm(wasm_query_handler);
 
-    let res: DisplayResponse = init_ok!(
+    let res: DisplayResponse<(), ExecuteMsg> = init_ok!(
         deps,
         "hub_owner",
         InstantiateMsg {
@@ -106,10 +112,26 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-                Response {
-                    data: None,
-                    messages: [],
-                }"#]],
+            Response {
+                data: None,
+                messages: [
+                    UpdateContractMetadata {
+                        owner_address: Some("referrals_hub"),
+                        rewards_address: None,
+                        reply_on: "Never",
+                    },
+                    WasmExecute {
+                        contract_addr: "referrals_hub",
+                        msg: RegisterDapp {
+                            name: "referrals_hub",
+                            percent: 100,
+                            collector: "hub_owner",
+                        },
+                        funds: None,
+                        reply_on: "Never",
+                    },
+                ],
+            }"#]],
     );
 
     let res: DisplayResponse<ReferralCodeResponse> =
@@ -298,5 +320,48 @@ fn plumbing_works() {
                             },
                         ],
                     }"#]],
+    );
+}
+
+#[test]
+fn self_referral_forwarding_works() {
+    let mut deps = archway_bindings::testing::mock_dependencies(archway_query_handler);
+
+    deps.querier.update_wasm(wasm_query_handler);
+
+    let _: DisplayResponse<ExecuteMsg> = init_ok!(
+        deps,
+        "hub_owner",
+        InstantiateMsg {
+            rewards_pot_code_id: 1,
+        }
+    );
+
+    let _: DisplayResponse<ReferralCodeResponse> =
+        exec_ok!(deps, "referrer", ExecuteMsg::RegisterReferrer {});
+
+    let res: DisplayResponse<ReferralCodeResponse, ExecuteMsg> = exec_ok!(
+        deps,
+        "another_referrer",
+        WithReferralCode {
+            referral_code: Some(1),
+            msg: ExecuteMsg::RegisterReferrer {}
+        }
+    );
+
+    check(
+        pretty(&res),
+        expect![[r#"
+            Response {
+                data: Some(ReferralCodeResponse { code: 2 }),
+                messages: [
+                    WasmExecute {
+                        contract_addr: "referrals_hub",
+                        msg: RecordReferral { code: 1 },
+                        funds: None,
+                        reply_on: "Never",
+                    },
+                ],
+            }"#]],
     );
 }
