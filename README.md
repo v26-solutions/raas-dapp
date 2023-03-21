@@ -20,6 +20,15 @@ Register for a referral code and check out which dApps have registered, along wi
 
 Drive traffic to those dApps to earn those referral rewards.
 
+### Also...
+
+[This dapp][1] [dog][2] [foods][3] [itself][4]!
+
+[1]: https://github.com/v26-solutions/raas-dapp/blob/ab6878c33fbe1de87c0e181df39f7bde717cd32d/crates/cosmwasm/archway/drivers/hub.rs#L164 
+[2]: https://github.com/v26-solutions/raas-dapp/blob/ab6878c33fbe1de87c0e181df39f7bde717cd32d/tests/referrals_archway_drivers/hub.rs#L112
+[3]: https://github.com/v26-solutions/raas-dapp/blob/ab6878c33fbe1de87c0e181df39f7bde717cd32d/crates/cosmwasm/archway/drivers/hub.rs#L192
+[4]: https://github.com/v26-solutions/raas-dapp/blob/ab6878c33fbe1de87c0e181df39f7bde717cd32d/tests/referrals_archway_drivers/hub.rs#L352
+
 ## Development
 
 ```
@@ -39,5 +48,5 @@ Options:
   -V, --version  Print version 
 ```
 
-Cargo will automatically build the `xtask` binary when you run this for the first time.
+Cargo will automatically build the `xtask` binary when you run `cargo x` for the first time.
 
