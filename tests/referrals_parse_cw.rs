@@ -1,6 +1,6 @@
 use cosmwasm_std::{testing::MockApi, Addr, MessageInfo};
 use referrals_cw::ExecuteMsg;
-use referrals_parse_cw::parse_exec;
+use referrals_parse_cw::parse_hub_exec;
 
 use crate::{check, expect, pretty};
 
@@ -12,7 +12,7 @@ fn register_referrer() {
         funds: vec![],
     };
 
-    let res = parse_exec(&mock_api, msg_info, ExecuteMsg::RegisterReferrer {}).unwrap();
+    let res = parse_hub_exec(&mock_api, msg_info, ExecuteMsg::RegisterReferrer {}).unwrap();
 
     check(
         pretty(&res),
@@ -35,7 +35,7 @@ mod register_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::RegisterDapp {
@@ -68,7 +68,7 @@ mod register_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info.clone(),
             ExecuteMsg::RegisterDapp {
@@ -84,7 +84,7 @@ mod register_dapp {
             expect!["invalid percent - valid value is any integer between 1 & 100"],
         );
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::RegisterDapp {
@@ -109,7 +109,7 @@ mod register_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::RegisterDapp {
@@ -138,7 +138,7 @@ mod deregister_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::DeregisterDapp {
@@ -171,7 +171,7 @@ mod deregister_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::DeregisterDapp {
@@ -196,7 +196,7 @@ mod deregister_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::DeregisterDapp {
@@ -221,7 +221,7 @@ mod deregister_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::DeregisterDapp {
@@ -252,7 +252,7 @@ mod set_dapp_fee {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::SetDappFee {
@@ -283,7 +283,7 @@ mod set_dapp_fee {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::SetDappFee {
@@ -307,7 +307,7 @@ mod set_dapp_fee {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::SetDappFee {
@@ -329,7 +329,7 @@ fn record_referral() {
         funds: vec![],
     };
 
-    let res = parse_exec(&mock_api, msg_info, ExecuteMsg::RecordReferral { code: 1 }).unwrap();
+    let res = parse_hub_exec(&mock_api, msg_info, ExecuteMsg::RecordReferral { code: 1 }).unwrap();
 
     check(
         pretty(&res),
@@ -352,7 +352,7 @@ mod collect_referrer {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::CollectReferrer {
@@ -383,7 +383,7 @@ mod collect_referrer {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::CollectReferrer {
@@ -411,7 +411,7 @@ mod collect_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::CollectDapp {
@@ -438,7 +438,7 @@ mod collect_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::CollectDapp {
@@ -465,7 +465,7 @@ mod transfer_ownership {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::TransferOwnership {
@@ -496,7 +496,7 @@ mod transfer_ownership {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::TransferOwnership {
@@ -524,7 +524,7 @@ mod configure_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::ConfigureDapp {
@@ -561,7 +561,7 @@ mod configure_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::ConfigureDapp {
@@ -587,7 +587,7 @@ mod configure_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info.clone(),
             ExecuteMsg::ConfigureDapp {
@@ -604,7 +604,7 @@ mod configure_dapp {
             expect!["invalid percent - valid value is any integer between 1 & 100"],
         );
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::ConfigureDapp {
@@ -630,7 +630,7 @@ mod configure_dapp {
             funds: vec![],
         };
 
-        let res = parse_exec(
+        let res = parse_hub_exec(
             &mock_api,
             msg_info,
             ExecuteMsg::ConfigureDapp {

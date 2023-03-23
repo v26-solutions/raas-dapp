@@ -32,4 +32,5 @@ referrals-cw = { path = "crates/cosmwasm/iface" }
 referrals-parse-cw = { path = "crates/cosmwasm/parse" }
 
 referrals-archway = { path = "crates/cosmwasm/archway" }
+referrals-archway-api = { path = "crates/cosmwasm/archway/api" }
 referrals-archway-drivers = { path = "crates/cosmwasm/archway/drivers" }

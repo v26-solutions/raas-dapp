@@ -73,7 +73,7 @@ macro_rules! env {
 
 macro_rules! _do {
     ($op:ident, $deps:ident, $from:expr, $msg:expr) => {{
-        rewards_pot::$op(&mut $deps.as_mut(), &env!(), $from, $msg)
+        rewards_pot::$op($deps.as_mut(), env!(), $from, $msg)
     }};
 }
 
@@ -87,7 +87,7 @@ macro_rules! init_ok {
 
 macro_rules! exec_ok {
     ($deps:ident, $from:literal, $msg:expr) => {
-        _do!(execute, $deps, &info!($from), $msg)
+        _do!(execute, $deps, info!($from), $msg)
             .map(From::from)
             .unwrap()
     };
@@ -95,7 +95,7 @@ macro_rules! exec_ok {
 
 macro_rules! exec_err {
     ($deps:ident, $from:literal, $msg:expr) => {
-        _do!(execute, $deps, &info!($from), $msg).unwrap_err()
+        _do!(execute, $deps, info!($from), $msg).unwrap_err()
     };
 }
 
@@ -108,7 +108,7 @@ macro_rules! _reply {
                 data: Some(cosmwasm_std::to_binary(&$msg).unwrap()),
             }),
         };
-        rewards_pot::reply(&mut $deps.as_mut(), &env!(), reply).map(DisplayResponse::from)
+        rewards_pot::reply($deps.as_mut(), env!(), reply).map(DisplayResponse::from)
     }};
 }
 
@@ -120,7 +120,7 @@ macro_rules! reply_ok {
 
 macro_rules! query_ok {
     ($deps:ident, $msg:expr) => {{
-        let bin = rewards_pot::query(&$deps.as_ref(), &env!(), &$msg).unwrap();
+        let bin = rewards_pot::query($deps.as_ref(), env!(), $msg).unwrap();
         cosmwasm_std::from_binary(&bin).unwrap()
     }};
 }
@@ -153,6 +153,8 @@ fn plumbing_works() {
 
     let mut deps =
         archway_bindings::testing::mock_dependencies(move |q| archway_query_handler(q, &records));
+
+    deps.querier.update_staking("ucosm", &[], &[]);
 
     let res: DisplayResponse<InstantiateResponse> = init_ok!(
         deps,

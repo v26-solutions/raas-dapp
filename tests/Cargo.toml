@@ -20,6 +20,7 @@ referrals-storage.workspace = true
 referrals-cw.workspace = true
 referrals-parse-cw.workspace = true
 
+referrals-archway-api.workspace = true
 referrals-archway-drivers.workspace = true
 
 expect-test = "1.4.1"

@@ -1,3 +1,7 @@
+use referrals_core::hub::dapp;
+
+use crate::{check, expect, pretty};
+
 #[cfg(test)]
 use super::*;
 
@@ -11,7 +15,7 @@ pub fn works() {
     let res = dapp::deregister(
         &mut api,
         &Id::from("collector"),
-        &Id::from("dapp"),
+        Id::from("dapp"),
         Id::from("new_admin"),
         Id::from("new_recipient"),
     )
@@ -22,8 +26,14 @@ pub fn works() {
         expect![[r#"
             [
                 WithdrawPending(Id("rewards_pot")),
-                SetRewardsRecipient(Id("new_recipient")),
-                SetRewardsAdmin(Id("new_admin")),
+                SetRewardsRecipient {
+                    dapp: Id("dapp"),
+                    recipient: Id("new_recipient"),
+                },
+                SetRewardsAdmin {
+                    dapp: Id("dapp"),
+                    admin: Id("new_admin"),
+                },
             ]"#]],
     );
 
@@ -33,7 +43,7 @@ pub fn works() {
             .collector("collector")
             .rewards_pot("rewards_pot"),
         &Id::from("dapp"),
-        &Id::from("dapp"),
+        Id::from("dapp"),
         Id::from("new_admin"),
         Id::from("new_recipient"),
     )
@@ -76,7 +86,7 @@ pub fn not_registered_fails() {
     let res = dapp::deregister(
         &mut api,
         &Id::from("collector"),
-        &Id::from("dapp"),
+        Id::from("dapp"),
         Id::from("new_admin"),
         Id::from("new_recipient"),
     )
@@ -95,7 +105,7 @@ pub fn sender_not_dapp_or_collector_fails() {
     let res = dapp::deregister(
         &mut api,
         &Id::from("bob"),
-        &Id::from("dapp"),
+        Id::from("dapp"),
         Id::from("new_admin"),
         Id::from("new_recipient"),
     )

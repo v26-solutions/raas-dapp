@@ -1,6 +1,7 @@
 use std::num::NonZeroU128;
 
-use referrals_core::{FallibleApi, Id, NonZeroPercent};
+use referrals_core::hub::NonZeroPercent;
+use referrals_core::{FallibleApi, Id};
 
 use dbg_pls::DebugPls;
 
@@ -29,7 +30,7 @@ pub struct MockApi {
 #[macro_export]
 macro_rules! nzp {
     ($p:literal) => {
-        referrals_core::NonZeroPercent::new($p).unwrap()
+        referrals_core::hub::NonZeroPercent::new($p).unwrap()
     };
 }
 
@@ -101,8 +102,13 @@ impl FallibleApi for MockApi {
     type Error = std::convert::Infallible;
 }
 
-pub mod collect;
-pub mod dapp;
-#[cfg(test)]
-pub mod exec;
-pub mod referral;
+#[path = "referrals_core_hub"]
+pub mod hub {
+    use super::*;
+
+    pub mod collect;
+    pub mod dapp;
+    #[cfg(test)]
+    pub mod exec;
+    pub mod referral;
+}

@@ -1,6 +1,8 @@
 use std::num::NonZeroU128;
 
-use crate::{Command, Error, Id, NonZeroPercent};
+use crate::{FallibleApi, Id};
+
+use super::{Command, Error, NonZeroPercent};
 
 #[derive(dbg_pls::DebugPls, Debug)]
 pub struct Metadata {
@@ -9,7 +11,7 @@ pub struct Metadata {
     pub repo_url: Option<String>,
 }
 
-pub trait ReadonlyStore: crate::FallibleApi {
+pub trait ReadonlyStore: FallibleApi {
     /// Checks whether the given `id` exists in dApp store.
     ///
     /// # Errors
@@ -46,7 +48,7 @@ pub trait ReadonlyStore: crate::FallibleApi {
     fn rewards_pot(&self, id: &Id) -> Result<Id, Self::Error>;
 }
 
-pub trait MutableStore: crate::FallibleApi {
+pub trait MutableStore: FallibleApi {
     /// Add a new named dApp
     ///
     /// # Errors
@@ -90,7 +92,7 @@ pub trait MutableStore: crate::FallibleApi {
     fn set_rewards_pot(&mut self, id: &Id, rewards_pot: Id) -> Result<(), Self::Error>;
 }
 
-pub trait Query: crate::FallibleApi {
+pub trait Query: FallibleApi {
     /// Returns the Id of the referral system dApp.
     ///
     /// # Errors
@@ -166,17 +168,17 @@ where
 /// - There is an API error.
 pub fn set_rewards_pot<Api>(
     api: &mut Api,
-    dapp: &Id,
+    dapp: Id,
     rewards_pot: Id,
 ) -> Result<Command, Error<Api::Error>>
 where
     Api: ReadonlyStore + MutableStore + Query,
 {
-    if !api.dapp_exists(dapp)? {
+    if !api.dapp_exists(&dapp)? {
         return Err(Error::DappNotRegistered);
     }
 
-    if api.has_rewards_pot(dapp)? {
+    if api.has_rewards_pot(&dapp)? {
         return Err(Error::RewardsPotAlreadySet);
     }
 
@@ -184,9 +186,12 @@ where
         return Err(Error::InvalidRewardsPotAdmin);
     }
 
-    api.set_rewards_pot(dapp, rewards_pot.clone())?;
+    api.set_rewards_pot(&dapp, rewards_pot.clone())?;
 
-    Ok(Command::SetRewardsRecipient(rewards_pot))
+    Ok(Command::SetRewardsRecipient {
+        dapp,
+        recipient: rewards_pot,
+    })
 }
 
 /// Deregisters a dApp in the system, collecting any outstanding rewards before relinquishing reward admin rights.
@@ -200,29 +205,35 @@ where
 pub fn deregister<Api>(
     api: &mut Api,
     sender: &Id,
-    dapp: &Id,
+    dapp: Id,
     rewards_admin: Id,
     rewards_recipient: Id,
 ) -> Result<[Command; 3], Error<Api::Error>>
 where
     Api: ReadonlyStore + MutableStore + Query,
 {
-    if !api.dapp_exists(dapp)? {
+    if !api.dapp_exists(&dapp)? {
         return Err(Error::DappNotRegistered);
     }
 
-    if sender != dapp && sender != &api.collector(dapp)? {
+    if sender != &dapp && sender != &api.collector(&dapp)? {
         return Err(Error::Unauthorized);
     }
 
-    api.remove_dapp(dapp)?;
+    api.remove_dapp(&dapp)?;
 
-    let pot = api.rewards_pot(dapp)?;
+    let pot = api.rewards_pot(&dapp)?;
 
     Ok([
         Command::WithdrawPending(pot),
-        Command::SetRewardsRecipient(rewards_recipient),
-        Command::SetRewardsAdmin(rewards_admin),
+        Command::SetRewardsRecipient {
+            dapp: dapp.clone(),
+            recipient: rewards_recipient,
+        },
+        Command::SetRewardsAdmin {
+            dapp,
+            admin: rewards_admin,
+        },
     ])
 }
 

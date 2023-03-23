@@ -1,10 +1,10 @@
 [package]
-name = "referrals-archway-drivers"
+name = "referrals-archway-api"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-path = "drivers.rs"
+path = "api.rs"
 test = false
 doctest = false
 
@@ -20,6 +20,3 @@ cosmwasm-std = { workspace = true, features = [ "staking" ] }
 referrals-core.workspace = true
 referrals-storage.workspace = true
 referrals-cw.workspace = true
-referrals-parse-cw.workspace = true
-referrals-archway.workspace = true
-referrals-archway-api.workspace = true

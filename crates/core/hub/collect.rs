@@ -1,8 +1,10 @@
 use std::num::NonZeroU128;
 
-use crate::{Command, Error, Id, ReadonlyDappStore, ReadonlyReferralStore, ReferralCode};
+use crate::{FallibleApi, Id};
 
-pub trait ReadonlyStore: crate::FallibleApi {
+use super::{Command, Error, ReadonlyDappStore, ReadonlyReferralStore, ReferralCode};
+
+pub trait ReadonlyStore: FallibleApi {
     /// Gets the total earnings of a referral code.
     ///
     /// # Errors
@@ -32,7 +34,7 @@ pub trait ReadonlyStore: crate::FallibleApi {
     fn dapp_total_collected(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error>;
 }
 
-pub trait MutableStore: crate::FallibleApi {
+pub trait MutableStore: FallibleApi {
     /// Sets the total collected earnings for a referral code.
     ///
     /// # Errors
@@ -68,7 +70,7 @@ pub trait MutableStore: crate::FallibleApi {
     ) -> Result<(), Self::Error>;
 }
 
-pub trait Query: crate::FallibleApi {
+pub trait Query: FallibleApi {
     /// The total rewards earned since dapp registration.
     ///
     /// # Errors
@@ -91,7 +93,7 @@ pub fn referrer<Api>(
     sender: Id,
     dapp: &Id,
     code: ReferralCode,
-) -> Result<[Command; 2], Error<Api::Error>>
+) -> Result<Command, Error<Api::Error>>
 where
     Api: ReadonlyStore + MutableStore + Query + ReadonlyReferralStore + ReadonlyDappStore,
 {
@@ -127,14 +129,11 @@ where
 
     let pot = api.rewards_pot(dapp)?;
 
-    Ok([
-        Command::WithdrawPending(pot.clone()),
-        Command::RedistributeRewards {
-            amount: owed,
-            pot,
-            receiver: sender,
-        },
-    ])
+    Ok(Command::RedistributeRewards {
+        amount: owed,
+        pot,
+        receiver: sender,
+    })
 }
 
 /// Collect a dApp's remaining rewards.
@@ -145,7 +144,7 @@ where
 /// - The sender is not either the dApp or it's nominated collector.
 /// - There are no rewards to collect.
 /// - There is an API error.
-pub fn dapp<Api>(api: &mut Api, sender: Id, dapp: &Id) -> Result<[Command; 2], Error<Api::Error>>
+pub fn dapp<Api>(api: &mut Api, sender: Id, dapp: &Id) -> Result<Command, Error<Api::Error>>
 where
     Api: ReadonlyStore + MutableStore + Query + ReadonlyReferralStore + ReadonlyDappStore,
 {
@@ -179,12 +178,9 @@ where
 
     let pot = api.rewards_pot(dapp)?;
 
-    Ok([
-        Command::WithdrawPending(pot.clone()),
-        Command::RedistributeRewards {
-            amount: owed,
-            pot,
-            receiver: sender,
-        },
-    ])
+    Ok(Command::RedistributeRewards {
+        amount: owed,
+        pot,
+        receiver: sender,
+    })
 }

@@ -226,6 +226,7 @@ impl HubMsg<Register<String, u8, Addr>, ArchwayMsg, Addr> {
         Ok(self
             .response
             .add_message(ArchwayMsg::UpdateContractMetadata {
+                contract_address: None, // set self
                 owner_address: Some(self.referrals_hub_addr.to_string()),
                 rewards_address: None,
             })

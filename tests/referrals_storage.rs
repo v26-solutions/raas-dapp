@@ -3,10 +3,11 @@ use std::collections::BTreeMap;
 use kv_storage::{Deserializer, Fallible, HasKey, KvStore, Read, Remove, Serializer, Write};
 use serde::{de::DeserializeOwned, Serialize};
 
-use referrals_core::{
-    Id, MutableCollectStore, MutableDappStore, MutableReferralStore, ReadonlyCollectStore,
+use referrals_core::hub::{
+    MutableCollectStore, MutableDappStore, MutableReferralStore, ReadonlyCollectStore,
     ReadonlyDappStore, ReadonlyReferralStore, ReferralCode,
 };
+use referrals_core::Id;
 use referrals_storage::Storage as CoreStorage;
 
 use crate::{check, expect, nz, nzp};
@@ -109,16 +110,16 @@ fn dapp_storage_works() {
         storage.inner().repo(),
         expect![[r#"
             {
-            	referrals_storage::dapp::collector::id1 => "collector"
-            	referrals_storage::dapp::collector::id2 => "another_collector"
-            	referrals_storage::dapp::dapps::id1 => "dapp1"
-            	referrals_storage::dapp::dapps::id2 => "dapp2"
-            	referrals_storage::dapp::percent::id1 => 100
-            	referrals_storage::dapp::percent::id2 => 75
-            	referrals_storage::dapp::repo_url::id1 => "some_repo"
-            	referrals_storage::dapp::repo_url::id2 => "some_other_repo"
-            	referrals_storage::dapp::rewards_pot::id1 => "rewards_pot_1"
-            	referrals_storage::dapp::rewards_pot::id2 => "rewards_pot_2"
+            	referrals_storage::hub::dapp::collector::id1 => "collector"
+            	referrals_storage::hub::dapp::collector::id2 => "another_collector"
+            	referrals_storage::hub::dapp::dapps::id1 => "dapp1"
+            	referrals_storage::hub::dapp::dapps::id2 => "dapp2"
+            	referrals_storage::hub::dapp::percent::id1 => 100
+            	referrals_storage::hub::dapp::percent::id2 => 75
+            	referrals_storage::hub::dapp::repo_url::id1 => "some_repo"
+            	referrals_storage::hub::dapp::repo_url::id2 => "some_other_repo"
+            	referrals_storage::hub::dapp::rewards_pot::id1 => "rewards_pot_1"
+            	referrals_storage::hub::dapp::rewards_pot::id2 => "rewards_pot_2"
             }
         "#]],
     );
@@ -196,21 +197,21 @@ fn referral_storage_works() {
         storage.inner().repo(),
         expect![[r#"
             {
-            	referrals_storage::referral::code_dapp_earnings::dapp100000001 => 1000
-            	referrals_storage::referral::code_dapp_earnings::dapp200000001 => 1000
-            	referrals_storage::referral::code_dapp_earnings::dapp200000002 => 1000
-            	referrals_storage::referral::code_owners::id1 => 1
-            	referrals_storage::referral::code_owners::id2 => 2
-            	referrals_storage::referral::code_total_earnings::00000001 => 2000
-            	referrals_storage::referral::code_total_earnings::00000002 => 1000
-            	referrals_storage::referral::codes::00000001 => "id1"
-            	referrals_storage::referral::codes::00000002 => "id2"
-            	referrals_storage::referral::dapp_contributions::dapp1 => 1000
-            	referrals_storage::referral::dapp_contributions::dapp2 => 2000
-            	referrals_storage::referral::invocation_counts::dapp100000001 => 1
-            	referrals_storage::referral::invocation_counts::dapp200000001 => 1
-            	referrals_storage::referral::invocation_counts::dapp200000002 => 1
-            	referrals_storage::referral::latest_code => 2
+            	referrals_storage::hub::referral::code_dapp_earnings::dapp1:00000001 => 1000
+            	referrals_storage::hub::referral::code_dapp_earnings::dapp2:00000001 => 1000
+            	referrals_storage::hub::referral::code_dapp_earnings::dapp2:00000002 => 1000
+            	referrals_storage::hub::referral::code_owners::id1 => 1
+            	referrals_storage::hub::referral::code_owners::id2 => 2
+            	referrals_storage::hub::referral::code_total_earnings::00000001 => 2000
+            	referrals_storage::hub::referral::code_total_earnings::00000002 => 1000
+            	referrals_storage::hub::referral::codes::00000001 => "id1"
+            	referrals_storage::hub::referral::codes::00000002 => "id2"
+            	referrals_storage::hub::referral::dapp_contributions::dapp1 => 1000
+            	referrals_storage::hub::referral::dapp_contributions::dapp2 => 2000
+            	referrals_storage::hub::referral::invocation_counts::dapp1:00000001 => 1
+            	referrals_storage::hub::referral::invocation_counts::dapp2:00000001 => 1
+            	referrals_storage::hub::referral::invocation_counts::dapp2:00000002 => 1
+            	referrals_storage::hub::referral::latest_code => 2
             }
         "#]],
     );
@@ -312,14 +313,14 @@ fn collect_storage_works() {
         storage.inner().repo(),
         expect![[r#"
             {
-            	referrals_storage::collect::dapp_total::dapp1 => 200
-            	referrals_storage::collect::dapp_total::dapp2 => 500
-            	referrals_storage::collect::referrer_dapp::dapp100000001 => 500
-            	referrals_storage::collect::referrer_dapp::dapp100000002 => 2000
-            	referrals_storage::collect::referrer_dapp::dapp200000001 => 500
-            	referrals_storage::collect::referrer_dapp::dapp200000002 => 1000
-            	referrals_storage::collect::referrer_total::00000001 => 1000
-            	referrals_storage::collect::referrer_total::00000002 => 3000
+            	referrals_storage::hub::collect::dapp_total::dapp1 => 200
+            	referrals_storage::hub::collect::dapp_total::dapp2 => 500
+            	referrals_storage::hub::collect::referrer_dapp::dapp1:00000001 => 500
+            	referrals_storage::hub::collect::referrer_dapp::dapp1:00000002 => 2000
+            	referrals_storage::hub::collect::referrer_dapp::dapp2:00000001 => 500
+            	referrals_storage::hub::collect::referrer_dapp::dapp2:00000002 => 1000
+            	referrals_storage::hub::collect::referrer_total::00000001 => 1000
+            	referrals_storage::hub::collect::referrer_total::00000002 => 3000
             }
         "#]],
     );

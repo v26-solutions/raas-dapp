@@ -1,9 +1,4 @@
-#[cfg(test)]
-use referrals_core::dapp;
-use referrals_core::{DappQuery, MutableDappStore, ReadonlyDappStore};
-
-#[cfg(test)]
-use crate::{check, expect, pretty};
+use referrals_core::hub::{DappQuery, MutableDappStore, ReadonlyDappStore};
 
 use super::*;
 

@@ -1,11 +1,6 @@
-#[cfg(test)]
-use referrals_core::collect;
-use referrals_core::{
+use referrals_core::hub::{
     CollectQuery, MutableCollectStore, ReadonlyCollectStore, ReadonlyReferralStore, ReferralCode,
 };
-
-#[cfg(test)]
-use crate::{check, expect, pretty};
 
 use super::*;
 
@@ -73,5 +68,6 @@ impl CollectQuery for MockApi {
 
 #[cfg(test)]
 pub mod dapp;
+
 #[cfg(test)]
 pub mod referrer;

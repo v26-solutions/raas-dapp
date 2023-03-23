@@ -1,4 +1,6 @@
-use referrals_core::DappMetadata;
+use referrals_core::hub::dapp;
+
+use crate::{check, expect, pretty};
 
 use super::*;
 
@@ -6,37 +8,35 @@ use super::*;
 pub fn works() {
     let mut api = MockApi::default().dapp("dapp").collector("collector");
 
-    dapp::configure(
+    let res = dapp::set_fee(
         &mut api,
         &Id::from("collector"),
-        &Id::from("dapp"),
-        DappMetadata {
-            percent: Some(nzp!(50)),
-            collector: Some(Id::from("new_collector")),
-            repo_url: Some("repo_url".to_owned()),
-        },
+        Id::from("dapp"),
+        nz!(1000),
     )
     .unwrap();
 
-    dapp::configure(
-        &mut MockApi::default().dapp("dapp").collector("collector"),
-        &Id::from("dapp"),
-        &Id::from("dapp"),
-        DappMetadata {
-            percent: Some(nzp!(50)),
-            collector: Some(Id::from("new_collector")),
-            repo_url: Some("repo_url".to_owned()),
-        },
-    )
-    .unwrap();
+    check(
+        pretty(&res),
+        expect![[r#"
+            SetDappFee {
+                dapp: Id("dapp"),
+                amount: 1000,
+            }"#]],
+    );
+
+    let from_dapp_res =
+        dapp::set_fee(&mut api, &Id::from("dapp"), Id::from("dapp"), nz!(1000)).unwrap();
+
+    assert_eq!(res, from_dapp_res);
 
     check(
         pretty(&api),
         expect![[r#"
             MockApi {
                 dapp: Some(("dapp", "dapp")),
-                percent: Some(50),
-                collector: Some("new_collector"),
+                percent: None,
+                collector: Some("collector"),
                 rewards_pot: None,
                 rewards_pot_admin: None,
                 rewards_admin: None,
@@ -60,15 +60,11 @@ pub fn works() {
 pub fn not_registered_fails() {
     let mut api = MockApi::default().collector("collector");
 
-    let res = dapp::configure(
+    let res = dapp::set_fee(
         &mut api,
-        &Id::from("dapp"),
-        &Id::from("dapp"),
-        DappMetadata {
-            percent: Some(nzp!(50)),
-            collector: Some(Id::from("new_collector")),
-            repo_url: Some("repo_url".to_owned()),
-        },
+        &Id::from("collector"),
+        Id::from("dapp"),
+        nz!(1000),
     )
     .unwrap_err();
 
@@ -79,17 +75,7 @@ pub fn not_registered_fails() {
 pub fn sender_not_dapp_or_collector_fails() {
     let mut api = MockApi::default().dapp("dapp").collector("collector");
 
-    let res = dapp::configure(
-        &mut api,
-        &Id::from("bob"),
-        &Id::from("dapp"),
-        DappMetadata {
-            percent: Some(nzp!(50)),
-            collector: Some(Id::from("new_collector")),
-            repo_url: Some("repo_url".to_owned()),
-        },
-    )
-    .unwrap_err();
+    let res = dapp::set_fee(&mut api, &Id::from("bob"), Id::from("dapp"), nz!(1000)).unwrap_err();
 
     check(res, expect!["unauthorised"]);
 }

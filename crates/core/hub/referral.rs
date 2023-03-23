@@ -1,6 +1,8 @@
 use std::num::NonZeroU128;
 
-use crate::{DappQuery, Error, Id, ReadonlyDappStore};
+use crate::{FallibleApi, Id};
+
+use super::{DappQuery, Error, ReadonlyDappStore};
 
 #[derive(dbg_pls::DebugPls, Debug, Default, Clone, Copy, PartialEq)]
 pub struct Code(u64);
@@ -22,7 +24,7 @@ impl From<u64> for Code {
     }
 }
 
-pub trait ReadonlyStore: crate::FallibleApi {
+pub trait ReadonlyStore: FallibleApi {
     /// Checks whether the given `code` exists.
     ///
     /// # Errors
@@ -73,7 +75,7 @@ pub trait ReadonlyStore: crate::FallibleApi {
     fn dapp_contributions(&self, dapp: &Id) -> Result<Option<NonZeroU128>, Self::Error>;
 }
 
-pub trait MutableStore: crate::FallibleApi {
+pub trait MutableStore: FallibleApi {
     /// Sets the latest registered referral code.
     ///
     /// # Errors

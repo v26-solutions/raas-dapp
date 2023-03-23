@@ -1,13 +1,16 @@
-use archway_bindings::types::rewards::ContractMetadataResponse;
+use archway_bindings::testing::MockDepsExt;
+use archway_bindings::types::rewards::{ContractMetadataResponse, FlatFeeResponse};
 use archway_bindings::ArchwayQuery;
 use cosmwasm_std::{
     to_binary, Addr, ContractResult, QuerierResult, QueryResponse, Uint128, WasmQuery,
 };
+use referrals_archway_api::hub as api;
 use referrals_archway_drivers::hub;
 use referrals_archway_drivers::hub::InstantiateMsg;
 use referrals_archway_drivers::rewards_pot::{
     ExecuteMsg as PotExecuteMsg, InstantiateMsg as PotInitMsg, QueryMsg as PotQueryMsg,
 };
+use referrals_core::hub::{self as hub_core, Kind, Msg, Registration};
 use referrals_core::Id;
 use referrals_cw::rewards_pot::{AdminResponse, DappResponse, TotalRewardsResponse};
 use referrals_cw::{ExecuteMsg, ReferralCodeResponse, WithReferralCode};
@@ -41,13 +44,17 @@ pub fn wasm_query_handler(query: &WasmQuery) -> QuerierResult {
     }
 }
 
-pub fn archway_query_handler(query: &ArchwayQuery) -> ContractResult<QueryResponse> {
+pub fn archway_query_handler(
+    query: &ArchwayQuery,
+    flat_fee: u128,
+) -> ContractResult<QueryResponse> {
     let response = match query {
-        ArchwayQuery::ContractMetadata {
-            contract_address: _,
-        } => to_binary(&ContractMetadataResponse {
+        ArchwayQuery::ContractMetadata { .. } => to_binary(&ContractMetadataResponse {
             owner_address: String::from("referrals_hub"),
             rewards_address: String::from("referrals_hub"),
+        }),
+        ArchwayQuery::FlatFee { .. } => to_binary(&FlatFeeResponse {
+            flat_fee_amount: cosmwasm_std::Coin::new(flat_fee, "test"),
         }),
         _ => panic!("unhandled archway query: {query:?}"),
     };
@@ -71,7 +78,7 @@ macro_rules! env {
 
 macro_rules! do_ok {
     ($op:ident, $deps:ident, $env:expr, $from:expr, $msg:expr) => {{
-        hub::$op(&mut $deps.as_mut(), $env, $from, $msg)
+        hub::$op($deps.as_mut(), $env, $from, $msg)
             .map(DisplayResponse::from)
             .unwrap()
     }};
@@ -79,7 +86,7 @@ macro_rules! do_ok {
 
 macro_rules! init_ok {
     ($deps:ident, $from:literal, $msg:expr) => {
-        do_ok!(init, $deps, env!(), info!($from), &$msg)
+        do_ok!(init, $deps, env!(), info!($from), $msg)
     };
 }
 
@@ -97,7 +104,8 @@ macro_rules! exec_ok {
 
 #[test]
 fn plumbing_works() {
-    let mut deps = archway_bindings::testing::mock_dependencies(archway_query_handler);
+    let mut deps =
+        archway_bindings::testing::mock_dependencies(move |q| archway_query_handler(q, 0));
 
     deps.querier.update_wasm(wasm_query_handler);
 
@@ -116,6 +124,7 @@ fn plumbing_works() {
                 data: None,
                 messages: [
                     UpdateContractMetadata {
+                        contract_address: None,
                         owner_address: Some("referrals_hub"),
                         rewards_address: None,
                         reply_on: "Never",
@@ -175,18 +184,22 @@ fn plumbing_works() {
     );
 
     // Skip Instanitate Reply parsing and set rewards pot address directly
-    hub::core_exec(
-        &mut deps.as_mut(),
-        &env!(),
-        referrals_core::Msg {
-            sender: Id::from("referrals_hub"),
-            kind: referrals_core::MsgKind::Register(referrals_core::Registration::RewardsPot {
-                dapp: Id::from("dapp"),
-                rewards_pot: Id::from("rewards_pot_0"),
-            }),
-        },
-    )
-    .unwrap();
+    {
+        let env = env!();
+        let mut deps = deps.as_mut();
+        let mut api = api::from_deps_mut(&mut deps, &env);
+        hub_core::exec(
+            &mut api,
+            Msg {
+                sender: Id::from("referrals_hub"),
+                kind: Kind::Register(Registration::RewardsPot {
+                    dapp: Id::from("dapp"),
+                    rewards_pot: Id::from("rewards_pot_0"),
+                }),
+            },
+        )
+        .unwrap();
+    }
 
     let res: DisplayResponse = exec_ok!(
         deps,
@@ -200,11 +213,20 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-                    Response {
-                        data: None,
-                        messages: [],
-                    }"#]],
+            Response {
+                data: None,
+                messages: [
+                    SetFlatFee {
+                        contract_address: Some("dapp"),
+                        flat_fee_amount: 1000,
+                        flat_fee_denom: "",
+                        reply_on: "Never",
+                    },
+                ],
+            }"#]],
     );
+
+    let mut deps = deps.with_archway_query_handler(move |q| archway_query_handler(q, 1000));
 
     let res: DisplayResponse = exec_ok!(deps, "dapp", ExecuteMsg::RecordReferral { code: 1 });
 
@@ -247,26 +269,20 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-                    Response {
-                        data: None,
-                        messages: [
-                            WasmExecute {
-                                contract_addr: "rewards_pot_0",
-                                msg: WithdrawRewards,
-                                funds: None,
-                                reply_on: "Never",
-                            },
-                            WasmExecute {
-                                contract_addr: "rewards_pot_0",
-                                msg: DistibuteRewards {
-                                    recipient: "referrer_new",
-                                    amount: 750,
-                                },
-                                funds: None,
-                                reply_on: "Never",
-                            },
-                        ],
-                    }"#]],
+            Response {
+                data: None,
+                messages: [
+                    WasmExecute {
+                        contract_addr: "rewards_pot_0",
+                        msg: DistibuteRewards {
+                            recipient: "referrer_new",
+                            amount: 750,
+                        },
+                        funds: None,
+                        reply_on: "Never",
+                    },
+                ],
+            }"#]],
     );
 
     let res: DisplayResponse = exec_ok!(
@@ -300,32 +316,27 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-                    Response {
-                        data: None,
-                        messages: [
-                            WasmExecute {
-                                contract_addr: "rewards_pot_0",
-                                msg: WithdrawRewards,
-                                funds: None,
-                                reply_on: "Never",
-                            },
-                            WasmExecute {
-                                contract_addr: "rewards_pot_0",
-                                msg: DistibuteRewards {
-                                    recipient: "collector_new",
-                                    amount: 4250,
-                                },
-                                funds: None,
-                                reply_on: "Never",
-                            },
-                        ],
-                    }"#]],
+            Response {
+                data: None,
+                messages: [
+                    WasmExecute {
+                        contract_addr: "rewards_pot_0",
+                        msg: DistibuteRewards {
+                            recipient: "collector_new",
+                            amount: 4250,
+                        },
+                        funds: None,
+                        reply_on: "Never",
+                    },
+                ],
+            }"#]],
     );
 }
 
 #[test]
 fn self_referral_forwarding_works() {
-    let mut deps = archway_bindings::testing::mock_dependencies(archway_query_handler);
+    let mut deps =
+        archway_bindings::testing::mock_dependencies(move |q| archway_query_handler(q, 0));
 
     deps.querier.update_wasm(wasm_query_handler);
 

@@ -1,11 +1,13 @@
 use std::marker::PhantomData;
 
-use cosmwasm_std::{BankMsg, CosmosMsg, SubMsg};
+use cosmwasm_std::{BankMsg, CosmosMsg, Response as CwResponse, SubMsg};
 
 use dbg_pls::DebugPls;
 use serde::de::DeserializeOwned;
 
-use referrals_archway_drivers::{CustomMsg, Response};
+use referrals_archway_drivers::CustomMsg;
+
+type Response = CwResponse<CustomMsg>;
 
 pub mod hub;
 pub mod rewards_pot;
@@ -61,10 +63,12 @@ where
                 ),
             CosmosMsg::Custom(custom) => match custom {
                 CustomMsg::UpdateContractMetadata {
+                    contract_address,
                     owner_address,
                     rewards_address,
                 } => f
                     .debug_struct("UpdateContractMetadata")
+                    .field("contract_address", &contract_address)
                     .field("owner_address", &owner_address)
                     .field("rewards_address", &rewards_address),
                 CustomMsg::WithdrawRewards {
@@ -74,6 +78,14 @@ where
                     .debug_struct("WithdrawRewards")
                     .field("records_limit", &records_limit)
                     .field("record_ids", &record_ids),
+                CustomMsg::SetFlatFee {
+                    contract_address,
+                    flat_fee_amount,
+                } => f
+                    .debug_struct("SetFlatFee")
+                    .field("contract_address", &contract_address)
+                    .field("flat_fee_amount", &flat_fee_amount.amount.u128())
+                    .field("flat_fee_denom", &flat_fee_amount.denom),
             },
             CosmosMsg::Wasm(cosmwasm_std::WasmMsg::Execute {
                 contract_addr,

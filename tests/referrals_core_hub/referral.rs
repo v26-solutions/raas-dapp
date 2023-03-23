@@ -1,11 +1,6 @@
-#[cfg(test)]
-use referrals_core::referral;
-use referrals_core::{
+use referrals_core::hub::{
     MutableReferralStore, ReadonlyDappStore, ReadonlyReferralStore, ReferralCode,
 };
-
-#[cfg(test)]
-use crate::{check, expect, pretty};
 
 use super::*;
 

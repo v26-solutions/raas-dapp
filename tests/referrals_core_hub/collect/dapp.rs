@@ -1,4 +1,7 @@
-use referrals_core::MutableReferralStore;
+use referrals_core::hub::collect;
+use referrals_core::hub::MutableReferralStore;
+
+use crate::{check, expect, pretty};
 
 use super::*;
 
@@ -19,14 +22,11 @@ fn works() {
     check(
         pretty(&res),
         expect![[r#"
-            [
-                WithdrawPending(Id("rewards_pot")),
-                RedistributeRewards {
-                    amount: 6000,
-                    pot: Id("rewards_pot"),
-                    receiver: Id("collector"),
-                },
-            ]"#]],
+            RedistributeRewards {
+                amount: 6000,
+                pot: Id("rewards_pot"),
+                receiver: Id("collector"),
+            }"#]],
     );
 
     check(
@@ -64,14 +64,11 @@ fn works() {
     check(
         pretty(&res),
         expect![[r#"
-            [
-                WithdrawPending(Id("rewards_pot")),
-                RedistributeRewards {
-                    amount: 6000,
-                    pot: Id("rewards_pot"),
-                    receiver: Id("dapp"),
-                },
-            ]"#]],
+            RedistributeRewards {
+                amount: 6000,
+                pot: Id("rewards_pot"),
+                receiver: Id("dapp"),
+            }"#]],
     );
 
     check(
