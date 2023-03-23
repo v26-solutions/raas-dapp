@@ -120,27 +120,34 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            Response {
-                data: None,
-                messages: [
-                    UpdateContractMetadata {
-                        contract_address: None,
-                        owner_address: Some("referrals_hub"),
-                        rewards_address: None,
-                        reply_on: "Never",
-                    },
-                    WasmExecute {
-                        contract_addr: "referrals_hub",
-                        msg: RegisterDapp {
-                            name: "referrals_hub",
-                            percent: 100,
-                            collector: "hub_owner",
-                        },
-                        funds: None,
-                        reply_on: "Never",
-                    },
-                ],
-            }"#]],
+            (
+              data: None,
+              messages: [
+                (
+                  id: 0,
+                  msg: Std(custom(update_contract_metadata(
+                    contract_address: None,
+                    owner_address: Some("referrals_hub"),
+                    rewards_address: None,
+                  ))),
+                  reply_on: never,
+                ),
+                (
+                  id: 0,
+                  msg: Wasm(Execute(
+                    contract_addr: "referrals_hub",
+                    msg: register_dapp(
+                      name: "referrals_hub",
+                      percent: 100,
+                      collector: "hub_owner",
+                    ),
+                  )),
+                  reply_on: never,
+                ),
+              ],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let res: DisplayResponse<ReferralCodeResponse> =
@@ -149,10 +156,14 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-                    Response {
-                        data: Some(ReferralCodeResponse { code: 1 }),
-                        messages: [],
-                    }"#]],
+            (
+              data: Some((
+                code: 1,
+              )),
+              messages: [],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let res: DisplayResponse<(), PotInitMsg> = exec_ok!(
@@ -168,19 +179,24 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-                    Response {
-                        data: None,
-                        messages: [
-                            WasmInstantiate {
-                                admin: None,
-                                code_id: 1,
-                                msg: InstantiateMsg { dapp: "dapp" },
-                                funds: None,
-                                label: "referrals-reward-pot-0",
-                                reply_on: "Success",
-                            },
-                        ],
-                    }"#]],
+            (
+              data: None,
+              messages: [
+                (
+                  id: 0,
+                  msg: Wasm(Instantiate(
+                    code_id: 1,
+                    msg: (
+                      dapp: "dapp",
+                    ),
+                    label: "referrals-reward-pot-0",
+                  )),
+                  reply_on: success,
+                ),
+              ],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     // Skip Instanitate Reply parsing and set rewards pot address directly
@@ -213,17 +229,24 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            Response {
-                data: None,
-                messages: [
-                    SetFlatFee {
-                        contract_address: Some("dapp"),
-                        flat_fee_amount: 1000,
-                        flat_fee_denom: "",
-                        reply_on: "Never",
-                    },
-                ],
-            }"#]],
+            (
+              data: None,
+              messages: [
+                (
+                  id: 0,
+                  msg: Std(custom(set_flat_fee(
+                    contract_address: Some("dapp"),
+                    flat_fee_amount: (
+                      denom: "",
+                      amount: "1000",
+                    ),
+                  ))),
+                  reply_on: never,
+                ),
+              ],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let mut deps = deps.with_archway_query_handler(move |q| archway_query_handler(q, 1000));
@@ -233,10 +256,12 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-                    Response {
-                        data: None,
-                        messages: [],
-                    }"#]],
+            (
+              data: None,
+              messages: [],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let res: DisplayResponse = exec_ok!(
@@ -251,10 +276,12 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-                    Response {
-                        data: None,
-                        messages: [],
-                    }"#]],
+            (
+              data: None,
+              messages: [],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let res: DisplayResponse<(), PotExecuteMsg> = exec_ok!(
@@ -269,20 +296,24 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            Response {
-                data: None,
-                messages: [
-                    WasmExecute {
-                        contract_addr: "rewards_pot_0",
-                        msg: DistibuteRewards {
-                            recipient: "referrer_new",
-                            amount: 750,
-                        },
-                        funds: None,
-                        reply_on: "Never",
-                    },
-                ],
-            }"#]],
+            (
+              data: None,
+              messages: [
+                (
+                  id: 0,
+                  msg: Wasm(Execute(
+                    contract_addr: "rewards_pot_0",
+                    msg: distribute_rewards(
+                      recipient: "referrer_new",
+                      amount: "750",
+                    ),
+                  )),
+                  reply_on: never,
+                ),
+              ],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let res: DisplayResponse = exec_ok!(
@@ -299,10 +330,12 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-                    Response {
-                        data: None,
-                        messages: [],
-                    }"#]],
+            (
+              data: None,
+              messages: [],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let res: DisplayResponse<(), PotExecuteMsg> = exec_ok!(
@@ -316,20 +349,24 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            Response {
-                data: None,
-                messages: [
-                    WasmExecute {
-                        contract_addr: "rewards_pot_0",
-                        msg: DistibuteRewards {
-                            recipient: "collector_new",
-                            amount: 4250,
-                        },
-                        funds: None,
-                        reply_on: "Never",
-                    },
-                ],
-            }"#]],
+            (
+              data: None,
+              messages: [
+                (
+                  id: 0,
+                  msg: Wasm(Execute(
+                    contract_addr: "rewards_pot_0",
+                    msg: distribute_rewards(
+                      recipient: "collector_new",
+                      amount: "4250",
+                    ),
+                  )),
+                  reply_on: never,
+                ),
+              ],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 }
 
@@ -340,7 +377,7 @@ fn self_referral_forwarding_works() {
 
     deps.querier.update_wasm(wasm_query_handler);
 
-    let _: DisplayResponse<ExecuteMsg> = init_ok!(
+    let _: DisplayResponse<(), ExecuteMsg> = init_ok!(
         deps,
         "hub_owner",
         InstantiateMsg {
@@ -363,16 +400,24 @@ fn self_referral_forwarding_works() {
     check(
         pretty(&res),
         expect![[r#"
-            Response {
-                data: Some(ReferralCodeResponse { code: 2 }),
-                messages: [
-                    WasmExecute {
-                        contract_addr: "referrals_hub",
-                        msg: RecordReferral { code: 1 },
-                        funds: None,
-                        reply_on: "Never",
-                    },
-                ],
-            }"#]],
+            (
+              data: Some((
+                code: 2,
+              )),
+              messages: [
+                (
+                  id: 0,
+                  msg: Wasm(Execute(
+                    contract_addr: "referrals_hub",
+                    msg: record_referral(
+                      code: 1,
+                    ),
+                  )),
+                  reply_on: never,
+                ),
+              ],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 }

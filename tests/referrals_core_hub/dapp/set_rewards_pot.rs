@@ -13,35 +13,35 @@ pub fn works() {
     check(
         pretty(&res),
         expect![[r#"
-            SetRewardsRecipient {
-                dapp: Id("dapp"),
-                recipient: Id("rewards_pot"),
-            }"#]],
+            SetRewardsRecipient(
+              dapp: ("dapp"),
+              recipient: ("rewards_pot"),
+            )"#]],
     );
 
     check(
         pretty(&api),
         expect![[r#"
-            MockApi {
-                dapp: Some(("dapp", "dapp")),
-                percent: None,
-                collector: None,
-                rewards_pot: Some("rewards_pot"),
-                rewards_pot_admin: None,
-                rewards_admin: Some("self"),
-                current_fee: None,
-                referral_code: None,
-                referral_code_owner: None,
-                latest_referral_code: None,
-                dapp_reffered_invocations: 0,
-                code_total_earnings: 0,
-                code_dapp_earnings: 0,
-                dapp_contributions: 0,
-                code_total_collected: 0,
-                code_dapp_collected: 0,
-                dapp_total_collected: 0,
-                dapp_total_rewards: 0,
-            }"#]],
+            (
+              dapp: Some(("dapp", "dapp")),
+              percent: None,
+              collector: None,
+              rewards_pot: Some("rewards_pot"),
+              rewards_pot_admin: None,
+              rewards_admin: Some("self"),
+              current_fee: None,
+              referral_code: None,
+              referral_code_owner: None,
+              latest_referral_code: None,
+              dapp_reffered_invocations: 0,
+              code_total_earnings: 0,
+              code_dapp_earnings: 0,
+              dapp_contributions: 0,
+              code_total_collected: 0,
+              code_dapp_collected: 0,
+              dapp_total_collected: 0,
+              dapp_total_rewards: 0,
+            )"#]],
     );
 }
 

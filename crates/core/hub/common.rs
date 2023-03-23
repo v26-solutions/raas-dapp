@@ -1,6 +1,8 @@
 use std::num::NonZeroU128;
 
-#[derive(dbg_pls::DebugPls, Debug, Clone, Copy)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct NonZeroPercent(u8);
 
 impl NonZeroPercent {

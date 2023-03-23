@@ -17,31 +17,31 @@ pub fn works() {
     )
     .unwrap();
 
-    check(pretty(&res), expect![[r#"CreateRewardsPot(Id("dapp"))"#]]);
+    check(pretty(&res), expect![[r#"CreateRewardsPot(("dapp"))"#]]);
 
     check(
         pretty(&api),
         expect![[r#"
-            MockApi {
-                dapp: Some(("dapp", "dapp")),
-                percent: Some(100),
-                collector: Some("collector"),
-                rewards_pot: None,
-                rewards_pot_admin: None,
-                rewards_admin: Some("self"),
-                current_fee: None,
-                referral_code: None,
-                referral_code_owner: None,
-                latest_referral_code: None,
-                dapp_reffered_invocations: 0,
-                code_total_earnings: 0,
-                code_dapp_earnings: 0,
-                dapp_contributions: 0,
-                code_total_collected: 0,
-                code_dapp_collected: 0,
-                dapp_total_collected: 0,
-                dapp_total_rewards: 0,
-            }"#]],
+            (
+              dapp: Some(("dapp", "dapp")),
+              percent: Some(100),
+              collector: Some("collector"),
+              rewards_pot: None,
+              rewards_pot_admin: None,
+              rewards_admin: Some("self"),
+              current_fee: None,
+              referral_code: None,
+              referral_code_owner: None,
+              latest_referral_code: None,
+              dapp_reffered_invocations: 0,
+              code_total_earnings: 0,
+              code_dapp_earnings: 0,
+              dapp_contributions: 0,
+              code_total_collected: 0,
+              code_dapp_collected: 0,
+              dapp_total_collected: 0,
+              dapp_total_rewards: 0,
+            )"#]],
     );
 }
 

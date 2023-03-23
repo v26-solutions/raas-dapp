@@ -1,8 +1,10 @@
 use std::num::NonZeroU128;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{FallibleApi, Id};
 
-#[derive(dbg_pls::DebugPls, Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error<Api> {
     #[error(transparent)]
     Api(#[from] Api),
@@ -10,25 +12,25 @@ pub enum Error<Api> {
     Unauthorized,
 }
 
-#[derive(dbg_pls::DebugPls, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Kind {
     WithdrawPending,
     Distribute { recipient: Id, amount: NonZeroU128 },
 }
 
-#[derive(dbg_pls::DebugPls, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Msg {
     pub sender: Id,
     pub kind: Kind,
 }
 
-#[derive(dbg_pls::DebugPls, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Command {
     WithdrawPending,
     Send { recipient: Id, amount: NonZeroU128 },
 }
 
-#[derive(dbg_pls::DebugPls, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Reply {
     Empty,
     Commands(Vec<Command>),

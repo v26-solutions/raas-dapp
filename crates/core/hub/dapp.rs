@@ -1,10 +1,12 @@
 use std::num::NonZeroU128;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{FallibleApi, Id};
 
 use super::{Command, Error, NonZeroPercent};
 
-#[derive(dbg_pls::DebugPls, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Metadata {
     pub percent: Option<NonZeroPercent>,
     pub collector: Option<Id>,

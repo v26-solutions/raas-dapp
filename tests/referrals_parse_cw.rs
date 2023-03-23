@@ -17,10 +17,10 @@ fn register_referrer() {
     check(
         pretty(&res),
         expect![[r#"
-            Msg {
-                sender: Id("sender"),
-                kind: Register(Referrer),
-            }"#]],
+            (
+              sender: ("sender"),
+              kind: Register(Referrer),
+            )"#]],
     );
 }
 
@@ -49,14 +49,14 @@ mod register_dapp {
         check(
             pretty(&res),
             expect![[r#"
-                Msg {
-                    sender: Id("sender"),
-                    kind: Register(Dapp {
-                        name: "dapp",
-                        percent: NonZeroPercent(100),
-                        collector: Id("collector"),
-                    }),
-                }"#]],
+                (
+                  sender: ("sender"),
+                  kind: Register(Dapp(
+                    name: "dapp",
+                    percent: (100),
+                    collector: ("collector"),
+                  )),
+                )"#]],
         );
     }
 
@@ -152,14 +152,14 @@ mod deregister_dapp {
         check(
             pretty(&res),
             expect![[r#"
-                Msg {
-                    sender: Id("sender"),
-                    kind: Register(DeregisterDapp {
-                        dapp: Id("dapp"),
-                        rewards_admin: Id("rewards_admin"),
-                        rewards_recipient: Id("new_recipient"),
-                    }),
-                }"#]],
+                (
+                  sender: ("sender"),
+                  kind: Register(DeregisterDapp(
+                    dapp: ("dapp"),
+                    rewards_admin: ("rewards_admin"),
+                    rewards_recipient: ("new_recipient"),
+                  )),
+                )"#]],
         );
     }
 
@@ -265,13 +265,13 @@ mod set_dapp_fee {
         check(
             pretty(&res),
             expect![[r#"
-                Msg {
-                    sender: Id("sender"),
-                    kind: Config(DappFee {
-                        dapp: Id("dapp"),
-                        fee: 1000,
-                    }),
-                }"#]],
+                (
+                  sender: ("sender"),
+                  kind: Config(DappFee(
+                    dapp: ("dapp"),
+                    fee: 1000,
+                  )),
+                )"#]],
         );
     }
 
@@ -334,10 +334,12 @@ fn record_referral() {
     check(
         pretty(&res),
         expect![[r#"
-            Msg {
-                sender: Id("sender"),
-                kind: Referral { code: Code(1) },
-            }"#]],
+            (
+              sender: ("sender"),
+              kind: Referral(
+                code: (1),
+              ),
+            )"#]],
     );
 }
 
@@ -365,13 +367,13 @@ mod collect_referrer {
         check(
             pretty(&res),
             expect![[r#"
-                Msg {
-                    sender: Id("sender"),
-                    kind: Collect(Referrer {
-                        dapp: Id("dapp"),
-                        code: Code(1),
-                    }),
-                }"#]],
+                (
+                  sender: ("sender"),
+                  kind: Collect(Referrer(
+                    dapp: ("dapp"),
+                    code: (1),
+                  )),
+                )"#]],
         );
     }
 
@@ -423,10 +425,12 @@ mod collect_dapp {
         check(
             pretty(&res),
             expect![[r#"
-                Msg {
-                    sender: Id("sender"),
-                    kind: Collect(Dapp { dapp: Id("dapp") }),
-                }"#]],
+                (
+                  sender: ("sender"),
+                  kind: Collect(Dapp(
+                    dapp: ("dapp"),
+                  )),
+                )"#]],
         );
     }
 
@@ -478,13 +482,13 @@ mod transfer_ownership {
         check(
             pretty(&res),
             expect![[r#"
-                Msg {
-                    sender: Id("sender"),
-                    kind: Config(TransferReferralCodeOwnership {
-                        code: Code(1),
-                        owner: Id("new_owner"),
-                    }),
-                }"#]],
+                (
+                  sender: ("sender"),
+                  kind: Config(TransferReferralCodeOwnership(
+                    code: (1),
+                    owner: ("new_owner"),
+                  )),
+                )"#]],
         );
     }
 
@@ -539,17 +543,17 @@ mod configure_dapp {
         check(
             pretty(&res),
             expect![[r#"
-                Msg {
-                    sender: Id("sender"),
-                    kind: Config(DappMetadata {
-                        dapp: Id("dapp"),
-                        metadata: Metadata {
-                            percent: Some(NonZeroPercent(100)),
-                            collector: Some(Id("new_collector")),
-                            repo_url: None,
-                        },
-                    }),
-                }"#]],
+                (
+                  sender: ("sender"),
+                  kind: Config(DappMetadata(
+                    dapp: ("dapp"),
+                    metadata: (
+                      percent: Some((100)),
+                      collector: Some(("new_collector")),
+                      repo_url: None,
+                    ),
+                  )),
+                )"#]],
         );
     }
 

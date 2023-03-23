@@ -14,7 +14,6 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
-#[derive(dbg_pls::DebugPls)]
 pub struct WithReferralCode<Msg> {
     /// Referral code of sender
     pub referral_code: Option<u64>,
@@ -92,7 +91,6 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
-#[derive(dbg_pls::DebugPls)]
 pub struct ReferralCodeResponse {
     /// Newly registered referral code
     pub code: u64,
@@ -106,68 +104,6 @@ impl From<ExecuteMsg> for WithReferralCode<ExecuteMsg> {
         Self {
             referral_code: None,
             msg,
-        }
-    }
-}
-
-impl dbg_pls::DebugPls for ExecuteMsg {
-    fn fmt(&self, f: dbg_pls::Formatter<'_>) {
-        match self {
-            ExecuteMsg::RegisterReferrer {} => f.debug_ident("RegisterReferrer"),
-            ExecuteMsg::RegisterDapp {
-                name,
-                percent,
-                collector,
-            } => f
-                .debug_struct("RegisterDapp")
-                .field("name", &name)
-                .field("percent", &percent)
-                .field("collector", collector)
-                .finish(),
-            ExecuteMsg::DeregisterDapp {
-                dapp,
-                rewards_admin,
-                rewards_recipient,
-            } => f
-                .debug_struct("DeregisterDapp")
-                .field("dapp", &dapp)
-                .field("rewards_admin", &rewards_admin)
-                .field("rewards_recipient", &rewards_recipient)
-                .finish(),
-            ExecuteMsg::SetDappFee { dapp, fee } => f
-                .debug_struct("SetDappFee")
-                .field("dapp", &dapp)
-                .field("fee", &fee.u128())
-                .finish(),
-            ExecuteMsg::RecordReferral { code } => f
-                .debug_struct("RecordReferral")
-                .field("code", &code)
-                .finish(),
-            ExecuteMsg::CollectReferrer { code, dapp } => f
-                .debug_struct("CollectReferrer")
-                .field("code", &code)
-                .field("dapp", &dapp)
-                .finish(),
-            ExecuteMsg::CollectDapp { dapp } => {
-                f.debug_struct("CollectDapp").field("dapp", &dapp).finish();
-            }
-            ExecuteMsg::TransferOwnership { code, owner } => f
-                .debug_struct("TransferOwnership")
-                .field("code", &code)
-                .field("owner", &owner)
-                .finish(),
-            ExecuteMsg::ConfigureDapp {
-                dapp,
-                percent,
-                collector,
-                repo_url,
-            } => f
-                .debug_struct("ConfigureDapp")
-                .field("dapp", &dapp)
-                .field("percent", &percent)
-                .field("collector", &collector)
-                .field("repo_url", &repo_url)
-                .finish(),
         }
     }
 }

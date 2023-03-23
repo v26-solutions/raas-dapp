@@ -1,11 +1,11 @@
 use std::num::NonZeroU128;
 
+use serde::Serialize;
+
 use referrals_core::hub::NonZeroPercent;
 use referrals_core::{FallibleApi, Id};
 
-use dbg_pls::DebugPls;
-
-#[derive(DebugPls, Default)]
+#[derive(Serialize, Default)]
 pub struct MockApi {
     dapp: Option<(String, String)>,
     percent: Option<u8>,

@@ -1,10 +1,12 @@
 use std::num::NonZeroU128;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{FallibleApi, Id};
 
 use super::{DappQuery, Error, ReadonlyDappStore};
 
-#[derive(dbg_pls::DebugPls, Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Default)]
 pub struct Code(u64);
 
 impl Code {

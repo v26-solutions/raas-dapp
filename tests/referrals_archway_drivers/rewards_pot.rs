@@ -167,26 +167,31 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            Response {
-                data: Some(InstantiateResponse {
-                    dapp: "dapp",
-                }),
-                messages: [],
-            }"#]],
+            (
+              data: Some((
+                dapp: "dapp",
+              )),
+              messages: [],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let res: DappResponse = query_ok!(deps, QueryMsg::Dapp {});
 
-    check(pretty(&res), expect![[r#"DappResponse { dapp: "dapp" }"#]]);
+    check(pretty(&res), expect![[r#"
+        (
+          dapp: "dapp",
+        )"#]]);
 
     let res: AdminResponse = query_ok!(deps, QueryMsg::Admin {});
 
     check(
         pretty(&res),
         expect![[r#"
-        AdminResponse {
-            admin: "referrals_hub",
-        }"#]],
+            (
+              admin: "referrals_hub",
+            )"#]],
     );
 
     let res: TotalRewardsResponse = query_ok!(deps, QueryMsg::TotalRewards {});
@@ -194,9 +199,9 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            TotalRewardsResponse {
-                total: 3000,
-            }"#]],
+            (
+              total: "3000",
+            )"#]],
     );
 
     let res: DisplayResponse = exec_ok!(deps, "referrals_hub", ExecuteMsg::WithdrawRewards {});
@@ -204,16 +209,21 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            Response {
-                data: None,
-                messages: [
-                    WithdrawRewards {
-                        records_limit: Some(3),
-                        record_ids: [],
-                        reply_on: "Success",
-                    },
-                ],
-            }"#]],
+            (
+              data: None,
+              messages: [
+                (
+                  id: 0,
+                  msg: Std(custom(withdraw_rewards(
+                    records_limit: Some(3),
+                    record_ids: [],
+                  ))),
+                  reply_on: success,
+                ),
+              ],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let res: DisplayResponse = reply_ok!(
@@ -227,10 +237,12 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            Response {
-                data: None,
-                messages: [],
-            }"#]],
+            (
+              data: None,
+              messages: [],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     let res: DisplayResponse = exec_ok!(
@@ -245,16 +257,26 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            Response {
-                data: None,
-                messages: [
-                    BankSend {
-                        to_address: "collector",
-                        amount: Some("1000 ucosm"),
-                        reply_on: "Never",
-                    },
-                ],
-            }"#]],
+            (
+              data: None,
+              messages: [
+                (
+                  id: 0,
+                  msg: Std(bank(send(
+                    to_address: "collector",
+                    amount: [
+                      (
+                        denom: "ucosm",
+                        amount: "1000",
+                      ),
+                    ],
+                  ))),
+                  reply_on: never,
+                ),
+              ],
+              attributes: [],
+              events: [],
+            )"#]],
     );
 
     // two more records added since collection
@@ -304,9 +326,9 @@ fn plumbing_works() {
     check(
         pretty(&res),
         expect![[r#"
-            TotalRewardsResponse {
-                total: 5000,
-            }"#]],
+            (
+              total: "5000",
+            )"#]],
     );
 }
 

@@ -24,17 +24,13 @@ pub fn works() {
     check(
         pretty(&res),
         expect![[r#"
-            [
-                WithdrawPending(Id("rewards_pot")),
-                SetRewardsRecipient {
-                    dapp: Id("dapp"),
-                    recipient: Id("new_recipient"),
-                },
-                SetRewardsAdmin {
-                    dapp: Id("dapp"),
-                    admin: Id("new_admin"),
-                },
-            ]"#]],
+            (WithdrawPending(("rewards_pot")), SetRewardsRecipient(
+              dapp: ("dapp"),
+              recipient: ("new_recipient"),
+            ), SetRewardsAdmin(
+              dapp: ("dapp"),
+              admin: ("new_admin"),
+            ))"#]],
     );
 
     let from_dapp_res = dapp::deregister(
@@ -54,26 +50,26 @@ pub fn works() {
     check(
         pretty(&api),
         expect![[r#"
-            MockApi {
-                dapp: None,
-                percent: None,
-                collector: Some("collector"),
-                rewards_pot: Some("rewards_pot"),
-                rewards_pot_admin: None,
-                rewards_admin: None,
-                current_fee: None,
-                referral_code: None,
-                referral_code_owner: None,
-                latest_referral_code: None,
-                dapp_reffered_invocations: 0,
-                code_total_earnings: 0,
-                code_dapp_earnings: 0,
-                dapp_contributions: 0,
-                code_total_collected: 0,
-                code_dapp_collected: 0,
-                dapp_total_collected: 0,
-                dapp_total_rewards: 0,
-            }"#]],
+            (
+              dapp: None,
+              percent: None,
+              collector: Some("collector"),
+              rewards_pot: Some("rewards_pot"),
+              rewards_pot_admin: None,
+              rewards_admin: None,
+              current_fee: None,
+              referral_code: None,
+              referral_code_owner: None,
+              latest_referral_code: None,
+              dapp_reffered_invocations: 0,
+              code_total_earnings: 0,
+              code_dapp_earnings: 0,
+              dapp_contributions: 0,
+              code_total_collected: 0,
+              code_dapp_collected: 0,
+              dapp_total_collected: 0,
+              dapp_total_rewards: 0,
+            )"#]],
     );
 }
 

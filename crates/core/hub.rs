@@ -1,4 +1,4 @@
-#[derive(dbg_pls::DebugPls, Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error<Api> {
     #[error(transparent)]
     Api(#[from] Api),

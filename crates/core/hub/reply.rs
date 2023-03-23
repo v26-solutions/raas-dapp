@@ -1,5 +1,7 @@
 use std::num::NonZeroU128;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{FallibleApi, Id};
 
 use super::ReferralCode;
@@ -65,7 +67,7 @@ pub trait Handle: FallibleApi {
     ) -> Result<(), Self::Error>;
 }
 
-#[derive(dbg_pls::DebugPls, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum Command {
     /// Create a rewards pot for the given dApp Id
     CreateRewardsPot(Id),
@@ -85,7 +87,7 @@ pub enum Command {
     WithdrawPending(Id),
 }
 
-#[derive(dbg_pls::DebugPls, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Reply {
     /// Nothing to do
     Empty,

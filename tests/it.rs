@@ -1,7 +1,17 @@
 use expect_test::Expect;
+use serde::Serialize;
 
-pub use dbg_pls::pretty;
 pub use expect_test::expect;
+
+pub fn pretty<T: Serialize>(t: &T) -> String {
+    ron::ser::to_string_pretty(
+        t,
+        ron::ser::PrettyConfig::default()
+            .indentor("  ".to_owned())
+            .separate_tuple_members(false),
+    )
+    .unwrap()
+}
 
 pub fn check(actual: impl ToString, expected: Expect) {
     expected.assert_eq(&actual.to_string())

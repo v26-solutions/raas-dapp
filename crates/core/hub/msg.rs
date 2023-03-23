@@ -1,10 +1,12 @@
 use std::num::NonZeroU128;
 
+use serde::{Deserialize, Serialize};
+
 use crate::Id;
 
 use super::{DappMetadata, NonZeroPercent, ReferralCode};
 
-#[derive(dbg_pls::DebugPls, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Registration {
     /// Register for a referral code
     Referrer,
@@ -24,7 +26,7 @@ pub enum Registration {
     },
 }
 
-#[derive(dbg_pls::DebugPls, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Collection {
     /// Collect referrer earnings
     Referrer { dapp: Id, code: ReferralCode },
@@ -32,14 +34,14 @@ pub enum Collection {
     Dapp { dapp: Id },
 }
 
-#[derive(dbg_pls::DebugPls, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Configure {
     TransferReferralCodeOwnership { code: ReferralCode, owner: Id },
     DappMetadata { dapp: Id, metadata: DappMetadata },
     DappFee { dapp: Id, fee: NonZeroU128 },
 }
 
-#[derive(dbg_pls::DebugPls, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Kind {
     Register(Registration),
     /// Record a referral code invocation
@@ -50,7 +52,7 @@ pub enum Kind {
     Config(Configure),
 }
 
-#[derive(dbg_pls::DebugPls, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Msg {
     pub sender: Id,
     pub kind: Kind,

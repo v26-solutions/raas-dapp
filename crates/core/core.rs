@@ -3,6 +3,8 @@
 
 use std::error::Error as StdError;
 
+use serde::{Deserialize, Serialize};
+
 pub mod hub;
 pub mod rewards_pot;
 
@@ -10,7 +12,7 @@ pub trait FallibleApi {
     type Error: StdError;
 }
 
-#[derive(dbg_pls::DebugPls, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Id(String);
 
 impl Id {
