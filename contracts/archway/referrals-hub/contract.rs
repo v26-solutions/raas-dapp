@@ -3,7 +3,17 @@ use cosmwasm_std::{entry_point, Binary, Env, MessageInfo, Reply};
 use referrals_archway_drivers::hub as driver;
 use referrals_archway_drivers::{Deps, DepsMut};
 
-use driver::{Error, ExecuteMsg, QueryMsg, Response};
+use driver::{Error, ExecuteMsg, InstantiateMsg, QueryMsg, Response};
+
+#[entry_point]
+pub fn instantiate(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: InstantiateMsg,
+) -> Result<Response, Error> {
+    driver::init(deps, env, info, msg)
+}
 
 #[entry_point]
 pub fn execute(

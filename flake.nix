@@ -2,6 +2,7 @@
   description = "Rust Development Shell";
 
   inputs = {
+    nagy-nur.url = "github:nagy/nur-packages";
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -10,7 +11,7 @@
     flake-utils.url  = "github:numtide/flake-utils";
   };
 
-  outputs = { self, fenix, nixpkgs, flake-utils, ... }:
+  outputs = { self, nagy-nur, fenix, nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ fenix.overlays.default ];
@@ -26,6 +27,7 @@
               "rustfmt"
               "llvm-tools-preview"
             ])          
+            targets.wasm32-unknown-unknown.latest.rust-std
         ];
       in
       with pkgs;
@@ -38,6 +40,9 @@
             cargo-expand
             cargo-llvm-cov
             cargo-watch
+            binaryen
+            twiggy
+            nagy-nur.packages.${system}.rustfilt
           ];
         };
       }

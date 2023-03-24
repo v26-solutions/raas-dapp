@@ -3,14 +3,26 @@ name = "xtask"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "xtask"
+[lib]
 path = "xtask.rs"
 test = false
 doctest = false
 
+[[bin]]
+name = "xtask"
+path = "cli.rs"
+test = false
+doctest = false
+
 [dependencies]
+serde.workspace = true
+referrals-cw.workspace = true
+
 anyhow = "1.0.70"
 xshell = "0.2.3"
 
 clap = { version = "4.1.11", features = [ "derive" ] } 
+dotenv = "0.15.0"
+duct = "0.13.6"
+ctrlc = "3.2.5"
+serde_json = "1.0.94"
