@@ -11,3 +11,5 @@ doctest = false
 [dependencies]
 cosmwasm-schema.workspace = true
 cosmwasm-std.workspace = true
+
+serde-cw-value = "0.7.0"
