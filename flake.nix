@@ -43,6 +43,9 @@
             binaryen
             twiggy
             nagy-nur.packages.${system}.rustfilt
+            nodejs-19_x
+            nodePackages_latest.typescript-language-server
+            nodePackages_latest.svelte-language-server
           ];
         };
       }
