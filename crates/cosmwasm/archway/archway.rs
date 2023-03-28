@@ -10,8 +10,8 @@ pub trait ResponseExt {
     type SetDappFeeCustom;
     type RecordReferralCustom;
 
-    /// Start the registration process
-    fn register_dapp(self) -> Registration;
+    /// Start the activation process
+    fn activate_dapp_referrals(self) -> Activation;
 
     /// Start the dApp fee setting process
     fn set_dapp_fee(self) -> SetDappFee<Self::SetDappFeeCustom>;
@@ -28,7 +28,7 @@ pub struct HubMsg<Msg, CustomMsg, ReferralsHubAddr = ()> {
     response: Response<CustomMsg>,
 }
 
-pub struct Register<Name = (), Percent = (), Collector = ()> {
+pub struct Activate<Name = (), Percent = (), Collector = ()> {
     name: Name,
     percent: Percent,
     collector: Collector,
@@ -43,7 +43,7 @@ pub struct Referral<Code = ()> {
     code: Code,
 }
 
-pub type Registration = HubMsg<Register, ArchwayMsg>;
+pub type Activation = HubMsg<Activate, ArchwayMsg>;
 pub type SetDappFee<C = ()> = HubMsg<DappFee, C>;
 pub type RecordReferral<C = ()> = HubMsg<Referral, C>;
 
@@ -51,9 +51,9 @@ impl ResponseExt for Response<ArchwayMsg> {
     type SetDappFeeCustom = ArchwayMsg;
     type RecordReferralCustom = ArchwayMsg;
 
-    fn register_dapp(self) -> Registration {
-        Registration {
-            msg: Register {
+    fn activate_dapp_referrals(self) -> Activation {
+        Activation {
+            msg: Activate {
                 name: (),
                 percent: (),
                 collector: (),
@@ -109,9 +109,9 @@ impl ResponseExt for Response {
     type SetDappFeeCustom = cosmwasm_std::Empty;
     type RecordReferralCustom = cosmwasm_std::Empty;
 
-    fn register_dapp(self) -> Registration {
-        Registration {
-            msg: Register {
+    fn activate_dapp_referrals(self) -> Activation {
+        Activation {
+            msg: Activate {
                 name: (),
                 percent: (),
                 collector: (),
@@ -149,14 +149,14 @@ impl<Msg, Custom> HubMsg<Msg, Custom> {
     }
 }
 
-impl<Custom, Addr, Percent, Collector> HubMsg<Register<(), Percent, Collector>, Custom, Addr> {
+impl<Custom, Addr, Percent, Collector> HubMsg<Activate<(), Percent, Collector>, Custom, Addr> {
     /// The name of the dApp registering
     pub fn dapp_name(
         self,
         name: impl Into<String>,
-    ) -> HubMsg<Register<String, Percent, Collector>, Custom, Addr> {
+    ) -> HubMsg<Activate<String, Percent, Collector>, Custom, Addr> {
         HubMsg {
-            msg: Register {
+            msg: Activate {
                 name: name.into(),
                 percent: self.msg.percent,
                 collector: self.msg.collector,
@@ -167,14 +167,14 @@ impl<Custom, Addr, Percent, Collector> HubMsg<Register<(), Percent, Collector>, 
     }
 }
 
-impl<Custom, Addr, Name, Collector> HubMsg<Register<Name, (), Collector>, Custom, Addr> {
+impl<Custom, Addr, Name, Collector> HubMsg<Activate<Name, (), Collector>, Custom, Addr> {
     /// The percent of contract premiums to give referrers
     pub fn referrer_percent(
         self,
         percent: u8,
-    ) -> HubMsg<Register<Name, u8, Collector>, Custom, Addr> {
+    ) -> HubMsg<Activate<Name, u8, Collector>, Custom, Addr> {
         HubMsg {
-            msg: Register {
+            msg: Activate {
                 name: self.msg.name,
                 percent,
                 collector: self.msg.collector,
@@ -185,11 +185,11 @@ impl<Custom, Addr, Name, Collector> HubMsg<Register<Name, (), Collector>, Custom
     }
 }
 
-impl<Custom, Addr, Name, Percent> HubMsg<Register<Name, Percent, ()>, Custom, Addr> {
+impl<Custom, Addr, Name, Percent> HubMsg<Activate<Name, Percent, ()>, Custom, Addr> {
     /// The address of the authorised remaining dApp rewards collector
-    pub fn collector(self, collector: Addr) -> HubMsg<Register<Name, Percent, Addr>, Custom, Addr> {
+    pub fn collector(self, collector: Addr) -> HubMsg<Activate<Name, Percent, Addr>, Custom, Addr> {
         HubMsg {
-            msg: Register {
+            msg: Activate {
                 name: self.msg.name,
                 percent: self.msg.percent,
                 collector,
@@ -200,7 +200,7 @@ impl<Custom, Addr, Name, Percent> HubMsg<Register<Name, Percent, ()>, Custom, Ad
     }
 }
 
-impl HubMsg<Register<String, u8, Addr>, ArchwayMsg, Addr> {
+impl HubMsg<Activate<String, u8, Addr>, ArchwayMsg, Addr> {
     /// Add the required registration messages to the response.
     /// NOTE: This will transfer rewards admin rights to the Hub.
     /// Either the dApp or the nominated collector can re-gain these rights by de-registering.
@@ -210,14 +210,14 @@ impl HubMsg<Register<String, u8, Addr>, ArchwayMsg, Addr> {
     /// This function will return an error if:
     /// - The given percent is not in the range 1-100
     /// - There is an issue with `cosmwasm_std` serialization
-    pub fn add(self) -> Result<Response<ArchwayMsg>, StdError> {
+    pub fn done(self) -> Result<Response<ArchwayMsg>, StdError> {
         if !(1..=100).contains(&self.msg.percent) {
             return Err(StdError::generic_err(
                 "Invalid referrer percent - must be in the range 1 - 100",
             ));
         }
 
-        let register = cosmwasm_std::to_binary(&ExecuteMsg::RegisterDapp {
+        let register = cosmwasm_std::to_binary(&ExecuteMsg::ActivateDapp {
             name: self.msg.name,
             percent: self.msg.percent,
             collector: self.msg.collector.into_string(),
@@ -272,7 +272,7 @@ impl<Custom> HubMsg<DappFee<Addr, Uint128>, Custom, Addr> {
     /// # Errors
     ///
     /// This function will return an error if there is an issue serializing the messages.
-    pub fn add(self) -> Result<Response<Custom>, StdError> {
+    pub fn done(self) -> Result<Response<Custom>, StdError> {
         let set_fee = cosmwasm_std::to_binary(&ExecuteMsg::SetDappFee {
             fee: self.msg.fee,
             dapp: self.msg.dapp.into_string(),
@@ -303,7 +303,7 @@ impl<Custom> HubMsg<Referral<u64>, Custom, Addr> {
     /// # Errors
     ///
     /// This function will return an error if there is an issue serializing the messages.
-    pub fn add(self) -> Result<Response<Custom>, StdError> {
+    pub fn done(self) -> Result<Response<Custom>, StdError> {
         let record_referral = cosmwasm_std::to_binary(&ExecuteMsg::RecordReferral {
             code: self.msg.code,
         })?;

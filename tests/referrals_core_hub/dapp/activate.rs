@@ -8,7 +8,7 @@ use super::*;
 pub fn works() {
     let mut api = MockApi::default().rewards_admin(SELF_ID);
 
-    let res = dapp::register(
+    let res = dapp::activate(
         &mut api,
         Id::from("dapp"),
         "dapp".to_owned(),
@@ -49,7 +49,7 @@ pub fn works() {
 pub fn already_registered_fails() {
     let mut api = MockApi::default().dapp("dapp");
 
-    let res = dapp::register(
+    let res = dapp::activate(
         &mut api,
         Id::from("dapp"),
         "dapp".to_owned(),
@@ -65,7 +65,7 @@ pub fn already_registered_fails() {
 pub fn not_referrals_admin_fails() {
     let mut api = MockApi::default().rewards_admin("bob");
 
-    let res = dapp::register(
+    let res = dapp::activate(
         &mut api,
         Id::from("dapp"),
         "dapp".to_owned(),

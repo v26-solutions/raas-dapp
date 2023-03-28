@@ -38,7 +38,7 @@ mod register_dapp {
         let res = parse_hub_exec(
             &mock_api,
             msg_info,
-            ExecuteMsg::RegisterDapp {
+            ExecuteMsg::ActivateDapp {
                 name: "dapp".to_owned(),
                 percent: 100,
                 collector: "collector".to_owned(),
@@ -51,7 +51,7 @@ mod register_dapp {
             expect![[r#"
                 (
                   sender: ("sender"),
-                  kind: Register(Dapp(
+                  kind: Register(ActivateDapp(
                     name: "dapp",
                     percent: (100),
                     collector: ("collector"),
@@ -71,7 +71,7 @@ mod register_dapp {
         let res = parse_hub_exec(
             &mock_api,
             msg_info.clone(),
-            ExecuteMsg::RegisterDapp {
+            ExecuteMsg::ActivateDapp {
                 name: "dapp".to_owned(),
                 percent: 101,
                 collector: "collector".to_owned(),
@@ -87,7 +87,7 @@ mod register_dapp {
         let res = parse_hub_exec(
             &mock_api,
             msg_info,
-            ExecuteMsg::RegisterDapp {
+            ExecuteMsg::ActivateDapp {
                 name: "dapp".to_owned(),
                 percent: 0,
                 collector: "collector".to_owned(),
@@ -112,7 +112,7 @@ mod register_dapp {
         let res = parse_hub_exec(
             &mock_api,
             msg_info,
-            ExecuteMsg::RegisterDapp {
+            ExecuteMsg::ActivateDapp {
                 name: "dapp".to_owned(),
                 percent: 100,
                 collector: "0".to_owned(),
@@ -141,7 +141,7 @@ mod deregister_dapp {
         let res = parse_hub_exec(
             &mock_api,
             msg_info,
-            ExecuteMsg::DeregisterDapp {
+            ExecuteMsg::DeactivateDapp {
                 dapp: "dapp".to_owned(),
                 rewards_admin: "rewards_admin".to_owned(),
                 rewards_recipient: "new_recipient".to_owned(),
@@ -154,7 +154,7 @@ mod deregister_dapp {
             expect![[r#"
                 (
                   sender: ("sender"),
-                  kind: Register(DeregisterDapp(
+                  kind: Register(DeactivateDapp(
                     dapp: ("dapp"),
                     rewards_admin: ("rewards_admin"),
                     rewards_recipient: ("new_recipient"),
@@ -174,7 +174,7 @@ mod deregister_dapp {
         let res = parse_hub_exec(
             &mock_api,
             msg_info,
-            ExecuteMsg::DeregisterDapp {
+            ExecuteMsg::DeactivateDapp {
                 dapp: "0".to_owned(),
                 rewards_admin: "rewards_admin".to_owned(),
                 rewards_recipient: "new_recipient".to_owned(),
@@ -199,7 +199,7 @@ mod deregister_dapp {
         let res = parse_hub_exec(
             &mock_api,
             msg_info,
-            ExecuteMsg::DeregisterDapp {
+            ExecuteMsg::DeactivateDapp {
                 dapp: "dapp".to_owned(),
                 rewards_admin: "0".to_owned(),
                 rewards_recipient: "new_recipient".to_owned(),
@@ -224,7 +224,7 @@ mod deregister_dapp {
         let res = parse_hub_exec(
             &mock_api,
             msg_info,
-            ExecuteMsg::DeregisterDapp {
+            ExecuteMsg::DeactivateDapp {
                 dapp: "dapp".to_owned(),
                 rewards_admin: "new_admin".to_owned(),
                 rewards_recipient: "0".to_owned(),

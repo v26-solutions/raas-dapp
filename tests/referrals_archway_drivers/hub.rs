@@ -136,7 +136,7 @@ fn plumbing_works() {
                   id: 0,
                   msg: Wasm(Execute(
                     contract_addr: "referrals_hub",
-                    msg: register_dapp(
+                    msg: activate_dapp(
                       name: "referrals_hub",
                       percent: 100,
                       collector: "hub_owner",
@@ -169,7 +169,7 @@ fn plumbing_works() {
     let res: DisplayResponse<(), PotInitMsg> = exec_ok!(
         deps,
         "dapp",
-        ExecuteMsg::RegisterDapp {
+        ExecuteMsg::ActivateDapp {
             name: "dapp".to_owned(),
             percent: 75,
             collector: "collector".to_owned(),

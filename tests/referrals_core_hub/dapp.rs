@@ -89,11 +89,11 @@ impl DappQuery for MockApi {
 }
 
 #[cfg(test)]
+pub mod activate;
+#[cfg(test)]
 pub mod configure;
 #[cfg(test)]
-pub mod deregister;
-#[cfg(test)]
-pub mod register;
+pub mod deactivate;
 #[cfg(test)]
 pub mod set_fee;
 #[cfg(test)]

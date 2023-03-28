@@ -35,9 +35,9 @@ pub enum ExecuteMsg {
     /// Register as a referrer.
     /// Responds with `ReferralCodeResponse`
     RegisterReferrer {},
-    /// Register as a dApp
+    /// Activate as a dApp
     /// Rewards admin rights must be transferred prior to issuing
-    RegisterDapp {
+    ActivateDapp {
         /// The name of the dApp
         name: String,
         /// Percent of flat-fee rewards to give referrers, 1-100
@@ -45,8 +45,8 @@ pub enum ExecuteMsg {
         /// Address of nominated rewards collector
         collector: String,
     },
-    /// De-register a dApp
-    DeregisterDapp {
+    /// De-activate a dApp
+    DeactivateDapp {
         /// dApp address to de-register
         dapp: String,
         /// Address of nominated rewards admin

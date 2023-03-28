@@ -10,16 +10,16 @@ use super::{DappMetadata, NonZeroPercent, ReferralCode};
 pub enum Registration {
     /// Register for a referral code
     Referrer,
-    /// Dapp self-registration to take referrals
-    Dapp {
+    /// Dapp self-activation to take referrals
+    ActivateDapp {
         name: String,
         percent: NonZeroPercent,
         collector: Id,
     },
     /// Set the rewards pot for the given dApp
     RewardsPot { dapp: Id, rewards_pot: Id },
-    /// Dapp de-registration to stop taking referrals
-    DeregisterDapp {
+    /// Dapp de-activation to stop taking referrals
+    DeactivateDapp {
         dapp: Id,
         rewards_admin: Id,
         rewards_recipient: Id,

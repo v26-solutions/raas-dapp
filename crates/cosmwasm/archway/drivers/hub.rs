@@ -45,12 +45,12 @@ pub fn init(
     api::from_deps_mut(&mut deps, &env).initialize(msg.rewards_pot_code_id)?;
 
     Response::default()
-        .register_dapp()
+        .activate_dapp_referrals()
         .referral_hub(env.contract.address)
         .dapp_name("referrals_hub")
         .referrer_percent(100)
         .collector(info.sender)
-        .add()
+        .done()
         .map_err(Error::from)
 }
 
@@ -84,7 +84,7 @@ pub fn execute(
         .record_referral()
         .referral_code(code)
         .referral_hub(env.contract.address)
-        .add()
+        .done()
         .map_err(Error::from)
 }
 

@@ -12,7 +12,7 @@ pub fn works() {
         .collector("collector")
         .rewards_pot("rewards_pot");
 
-    let res = dapp::deregister(
+    let res = dapp::deactivate(
         &mut api,
         &Id::from("collector"),
         Id::from("dapp"),
@@ -33,7 +33,7 @@ pub fn works() {
             ))"#]],
     );
 
-    let from_dapp_res = dapp::deregister(
+    let from_dapp_res = dapp::deactivate(
         &mut MockApi::default()
             .dapp("dapp")
             .collector("collector")
@@ -79,7 +79,7 @@ pub fn not_registered_fails() {
         .collector("collector")
         .rewards_pot("rewards_pot");
 
-    let res = dapp::deregister(
+    let res = dapp::deactivate(
         &mut api,
         &Id::from("collector"),
         Id::from("dapp"),
@@ -88,7 +88,7 @@ pub fn not_registered_fails() {
     )
     .unwrap_err();
 
-    check(res, expect!["dapp not registered"]);
+    check(res, expect!["dapp not activated"]);
 }
 
 #[test]
@@ -98,7 +98,7 @@ pub fn sender_not_dapp_or_collector_fails() {
         .collector("collector")
         .rewards_pot("rewards_pot");
 
-    let res = dapp::deregister(
+    let res = dapp::deactivate(
         &mut api,
         &Id::from("bob"),
         Id::from("dapp"),

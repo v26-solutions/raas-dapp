@@ -52,7 +52,7 @@ pub fn not_registered_fails() {
     let res =
         dapp::set_rewards_pot(&mut api, Id::from("dapp"), Id::from("rewards_pot")).unwrap_err();
 
-    check(res, expect!["dapp not registered"]);
+    check(res, expect!["dapp not activated"]);
 }
 
 #[test]

@@ -49,21 +49,21 @@ pub fn parse_hub_exec(
     let kind = match cw_msg {
         HubExecuteMsg::RegisterReferrer {} => HubMsgKind::Register(Registration::Referrer),
 
-        HubExecuteMsg::RegisterDapp {
+        HubExecuteMsg::ActivateDapp {
             name,
             percent,
             collector,
-        } => HubMsgKind::Register(Registration::Dapp {
+        } => HubMsgKind::Register(Registration::ActivateDapp {
             name,
             percent: NonZeroPercent::new(percent).ok_or(Error::InvalidPercent)?,
             collector: api.addr_validate(&collector).map(Id::from)?,
         }),
 
-        HubExecuteMsg::DeregisterDapp {
+        HubExecuteMsg::DeactivateDapp {
             dapp,
             rewards_admin,
             rewards_recipient,
-        } => HubMsgKind::Register(Registration::DeregisterDapp {
+        } => HubMsgKind::Register(Registration::DeactivateDapp {
             dapp: api.addr_validate(&dapp).map(Id::from)?,
             rewards_admin: api.addr_validate(&rewards_admin).map(Id::from)?,
             rewards_recipient: api.addr_validate(&rewards_recipient).map(Id::from)?,

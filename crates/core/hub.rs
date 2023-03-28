@@ -6,8 +6,8 @@ pub enum Error<Api> {
     Unauthorized,
     #[error("already registered")]
     AlreadyRegistered,
-    #[error("dapp not registered")]
-    DappNotRegistered,
+    #[error("dapp not activated")]
+    DappNotActivated,
     #[error("referral code not registered")]
     ReferralCodeNotRegistered,
     #[error("invalid rewards admin")]
@@ -69,19 +69,19 @@ where
     match msg.kind {
         Kind::Register(reg) => match reg {
             Registration::Referrer => referral::register(api, msg.sender).map(Reply::from),
-            Registration::Dapp {
+            Registration::ActivateDapp {
                 name,
                 percent,
                 collector,
-            } => dapp::register(api, msg.sender, name, percent, collector).map(Reply::from),
+            } => dapp::activate(api, msg.sender, name, percent, collector).map(Reply::from),
             Registration::RewardsPot { dapp, rewards_pot } => {
                 dapp::set_rewards_pot(api, dapp, rewards_pot).map(Reply::from)
             }
-            Registration::DeregisterDapp {
+            Registration::DeactivateDapp {
                 dapp,
                 rewards_admin,
                 rewards_recipient,
-            } => dapp::deregister(api, &msg.sender, dapp, rewards_admin, rewards_recipient)
+            } => dapp::deactivate(api, &msg.sender, dapp, rewards_admin, rewards_recipient)
                 .map(Reply::from),
         },
 

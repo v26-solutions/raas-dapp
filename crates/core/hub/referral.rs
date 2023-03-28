@@ -198,7 +198,7 @@ where
     Api: ReadonlyStore + MutableStore + DappQuery + ReadonlyDappStore,
 {
     if !api.dapp_exists(sender)? {
-        return Err(Error::DappNotRegistered);
+        return Err(Error::DappNotActivated);
     }
 
     if !api.code_exists(code)? {

@@ -31,7 +31,7 @@ fn collect_earnings_post_deregister() {
     exec_msg_ok!(
         api,
         "dapp",
-        Registration::Dapp {
+        Registration::ActivateDapp {
             name: "dapp".to_owned(),
             percent: nzp!(50),
             collector: Id::from("collector"),
@@ -71,7 +71,7 @@ fn collect_earnings_post_deregister() {
     exec_msg_ok!(
         api,
         "collector",
-        Registration::DeregisterDapp {
+        Registration::DeactivateDapp {
             dapp: Id::from("dapp"),
             rewards_admin: Id::from("collector"),
             rewards_recipient: Id::from("collector")
@@ -89,7 +89,9 @@ fn collect_earnings_post_deregister() {
 
     check(
         res,
-        expect![[r#"RedistributeRewards { amount: 500, pot: Id("rewards_pot"), receiver: Id("referrer") }"#]],
+        expect![[
+            r#"RedistributeRewards { amount: 500, pot: Id("rewards_pot"), receiver: Id("referrer") }"#
+        ]],
     );
 
     let res = exec_msg_ok!(
@@ -102,7 +104,9 @@ fn collect_earnings_post_deregister() {
 
     check(
         res,
-        expect![[r#"RedistributeRewards { amount: 722, pot: Id("rewards_pot"), receiver: Id("collector") }"#]],
+        expect![[
+            r#"RedistributeRewards { amount: 722, pot: Id("rewards_pot"), receiver: Id("collector") }"#
+        ]],
     );
 }
 
@@ -113,7 +117,7 @@ fn msg_routing() {
     let res = exec_msg_ok!(
         api,
         "dapp",
-        Registration::Dapp {
+        Registration::ActivateDapp {
             name: "dapp".to_owned(),
             percent: nzp!(50),
             collector: Id::from("collector"),
@@ -131,7 +135,10 @@ fn msg_routing() {
         }
     );
 
-    check(res, expect![[r#"SetRewardsRecipient { dapp: Id("dapp"), recipient: Id("rewards_pot") }"#]]);
+    check(
+        res,
+        expect![[r#"SetRewardsRecipient { dapp: Id("dapp"), recipient: Id("rewards_pot") }"#]],
+    );
 
     let res = exec_msg_ok!(api, "referrer1", Registration::Referrer);
 
@@ -212,7 +219,9 @@ fn msg_routing() {
 
     check(
         res,
-        expect![[r#"RedistributeRewards { amount: 750, pot: Id("rewards_pot"), receiver: Id("referrer2") }"#]],
+        expect![[
+            r#"RedistributeRewards { amount: 750, pot: Id("rewards_pot"), receiver: Id("referrer2") }"#
+        ]],
     );
 
     api.set_dapp_total_rewards(1333);
@@ -252,13 +261,15 @@ fn msg_routing() {
 
     check(
         res,
-        expect![[r#"RedistributeRewards { amount: 583, pot: Id("rewards_pot"), receiver: Id("collector") }"#]],
+        expect![[
+            r#"RedistributeRewards { amount: 583, pot: Id("rewards_pot"), receiver: Id("collector") }"#
+        ]],
     );
 
     let res = exec_msg_ok!(
         api,
         "collector",
-        Registration::DeregisterDapp {
+        Registration::DeactivateDapp {
             dapp: Id::from("dapp"),
             rewards_admin: Id::from("collector"),
             rewards_recipient: Id::from("collector")

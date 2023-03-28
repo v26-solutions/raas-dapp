@@ -50,7 +50,7 @@ pub fn dapp_not_registered_fails() {
 
     let res = referral::record(&mut api, &Id::from("dapp"), ReferralCode::from(1)).unwrap_err();
 
-    check(res, expect!["dapp not registered"]);
+    check(res, expect!["dapp not activated"]);
 }
 
 #[test]

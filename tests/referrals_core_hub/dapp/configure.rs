@@ -75,7 +75,7 @@ pub fn not_registered_fails() {
     )
     .unwrap_err();
 
-    check(res, expect!["dapp not registered"]);
+    check(res, expect!["dapp not activated"]);
 }
 
 #[test]

@@ -124,7 +124,7 @@ pub trait Query: FallibleApi {
     fn current_fee(&self, id: &Id) -> Result<NonZeroU128, Self::Error>;
 }
 
-/// Registers a dApp with the system, setting at least the initial percent & collector.
+/// Activate a dApp within the system, setting at least the initial percent & collector.
 ///
 /// # Errors
 ///
@@ -132,7 +132,7 @@ pub trait Query: FallibleApi {
 /// - The dApp is already registered.
 /// - The dApp does not have the referral program set as rewards receiver.
 /// - There is an API error.
-pub fn register<Api>(
+pub fn activate<Api>(
     api: &mut Api,
     sender: Id,
     name: String,
@@ -177,7 +177,7 @@ where
     Api: ReadonlyStore + MutableStore + Query,
 {
     if !api.dapp_exists(&dapp)? {
-        return Err(Error::DappNotRegistered);
+        return Err(Error::DappNotActivated);
     }
 
     if api.has_rewards_pot(&dapp)? {
@@ -196,15 +196,15 @@ where
     })
 }
 
-/// Deregisters a dApp in the system, collecting any outstanding rewards before relinquishing reward admin rights.
+/// De-activate a dApp in the system, collecting any outstanding rewards before relinquishing reward admin rights.
 ///
 /// # Errors
 ///
 /// This function will return an error if:
-/// - The dApp is not registered.
+/// - The dApp is not activated.
 /// - The sender is not either the dApp or it's collector.
 /// - There is an API error.
-pub fn deregister<Api>(
+pub fn deactivate<Api>(
     api: &mut Api,
     sender: &Id,
     dapp: Id,
@@ -215,7 +215,7 @@ where
     Api: ReadonlyStore + MutableStore + Query,
 {
     if !api.dapp_exists(&dapp)? {
-        return Err(Error::DappNotRegistered);
+        return Err(Error::DappNotActivated);
     }
 
     if sender != &dapp && sender != &api.collector(&dapp)? {
@@ -244,7 +244,7 @@ where
 /// # Errors
 ///
 /// This function will return an error if:
-/// - The dApp is not registered.
+/// - The dApp is not activated.
 /// - The sender is not either the dApp or it's collector.
 /// - There is an API error.
 pub fn configure<Api>(
@@ -257,7 +257,7 @@ where
     Api: ReadonlyStore + MutableStore,
 {
     if !api.dapp_exists(dapp)? {
-        return Err(Error::DappNotRegistered);
+        return Err(Error::DappNotActivated);
     }
 
     if sender != dapp && sender != &api.collector(dapp)? {
@@ -284,7 +284,7 @@ where
 /// # Errors
 ///
 /// This function will return an error if:
-/// - The dApp is not registered.
+/// - The dApp is not activated.
 /// - The sender is not either the dApp or it's collector.
 /// - There is an API error.
 pub fn set_fee<Api>(
@@ -297,7 +297,7 @@ where
     Api: ReadonlyStore,
 {
     if !api.dapp_exists(&dapp)? {
-        return Err(Error::DappNotRegistered);
+        return Err(Error::DappNotActivated);
     }
 
     if sender != &dapp && sender != &api.collector(&dapp)? {
