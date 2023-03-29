@@ -61,6 +61,7 @@ pub fn init(
 /// This function will return an error if:
 /// - There is an issue parsing the input
 /// - There is an issue in `referrals_core`
+/// - There is a problem with `cosmwasm_std` storage or serialization.
 #[allow(clippy::needless_pass_by_value)]
 pub fn execute(
     mut deps: DepsMut,
@@ -92,7 +93,10 @@ pub fn execute(
 ///
 /// # Errors
 ///
-/// This function will return an error if the reply is invalid or there is a problem with `cosmwasm_std` storage or serialization
+/// This function will return an error if:
+/// - There is an issue parsing the input
+/// - There is an issue in `referrals_core`
+/// - There is a problem with `cosmwasm_std` storage or serialization.
 #[allow(clippy::needless_pass_by_value)]
 pub fn reply(mut deps: DepsMut, env: Env, reply: Reply) -> Result<Response, Error> {
     let mut api = api::from_deps_mut(&mut deps, &env);
@@ -108,8 +112,17 @@ pub fn reply(mut deps: DepsMut, env: Env, reply: Reply) -> Result<Response, Erro
 ///
 /// # Errors
 ///
-/// This function should only return an error if there is a problem with `cosmwasm_std` storage or serialization
+/// This function will return an error if:
+/// - There is an issue parsing the input
+/// - There is an issue in `referrals_core`
+/// - There is a problem with `cosmwasm_std` storage or serialization.
 #[allow(clippy::needless_pass_by_value)]
-pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> Result<Binary, Error> {
-    Ok(Binary::default())
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, Error> {
+    let request = referrals_parse_cw::parse_hub_query(deps.api, msg)?;
+
+    let api = api::from_deps(deps, &env);
+
+    let response = _core::handle_query(&api, request)?;
+
+    referrals_parse_cw::convert_hub_query_response(response).map_err(Error::from)
 }

@@ -54,6 +54,7 @@ pub use reply::Handle as HandleReply;
 pub use reply::{Command, Reply};
 
 pub use query::handle as handle_query;
+pub use query::DappInfo;
 pub use query::Dapps as DappsQuery;
 pub use query::Request as QueryRequest;
 pub use query::Response as QueryResponse;

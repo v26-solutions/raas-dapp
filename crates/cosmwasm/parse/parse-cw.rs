@@ -3,20 +3,21 @@
 
 use std::num::NonZeroU128;
 
-use cosmwasm_std::{Api, MessageInfo, Reply, StdError};
+use cosmwasm_std::{to_binary, Api, Binary, MessageInfo, Reply, StdError, Uint128};
 
 use cw_utils::ParseReplyError;
 
 use referrals_core::hub::{
-    Collection, Configure, DappMetadata, Kind as HubMsgKind, Msg as HubMsg, NonZeroPercent,
-    ReferralCode, Registration,
+    Collection, Configure, DappInfo, DappMetadata, Kind as HubMsgKind, Msg as HubMsg,
+    NonZeroPercent, QueryRequest, QueryResponse, ReferralCode, Registration,
 };
 use referrals_core::rewards_pot::{Kind as RewardsPotKind, Msg as RewardsPotMsg};
 use referrals_core::Id;
 
 use referrals_cw::rewards_pot::ExecuteMsg as PotExecuteMsg;
 use referrals_cw::rewards_pot::InstantiateResponse as PotInitResponse;
-use referrals_cw::ExecuteMsg as HubExecuteMsg;
+use referrals_cw::{AllDappsResponse, DappResponse, QueryMsg as HubQueryMsg};
+use referrals_cw::{ExecuteMsg as HubExecuteMsg, TotalDappsResponse};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -36,7 +37,7 @@ pub enum Error {
     InvalidReplyData(StdError),
 }
 
-/// Parse an untrusted user provided `referrals_core::hub::ExecuteMsg` into a trusted core msg
+/// Parse an untrusted user provided `referrals_cw::ExecuteMsg` into a trusted core msg
 ///
 /// # Errors
 ///
@@ -119,6 +120,53 @@ pub fn parse_hub_exec(
         sender: Id::from(msg_info.sender),
         kind,
     })
+}
+
+/// Parse a `referrals_cw::QueryMsg` into a core hub `QueryRequest`
+///
+/// # Errors
+///
+/// This function will return an error if the user provided message contains invalid fields.
+pub fn parse_hub_query(api: &dyn Api, cw_msg: HubQueryMsg) -> Result<QueryRequest, Error> {
+    let request = match cw_msg {
+        HubQueryMsg::TotalDapps {} => QueryRequest::TotalDappCount,
+        HubQueryMsg::Dapp { dapp } => {
+            let id = api.addr_validate(&dapp).map(Id::from)?;
+            QueryRequest::Dapp(id)
+        }
+        HubQueryMsg::AllDapps { start, limit } => QueryRequest::AllDapps { start, limit },
+    };
+
+    Ok(request)
+}
+
+/// Convert a core hub `QueryResponse` into it's corresponding `referrals_cw` Query Response in `Binary` form.
+///
+/// # Errors
+///
+/// This function will return an error if there is an issue with `cosmwasm_std` serialization.
+pub fn convert_hub_query_response(response: QueryResponse) -> Result<Binary, Error> {
+    let to_cw_dapp = |d: DappInfo| DappResponse {
+        address: d.id.into_string(),
+        active: d.active,
+        name: d.name,
+        percent: d.percent.to_u8(),
+        repo_url: d.repo_url,
+        fee: d.fee.map(NonZeroU128::get).map(Uint128::from),
+        total_invocations: d.total_invocations,
+        discrete_referrers: d.discrete_referrers,
+        total_contributions: d.total_contributions.into(),
+        total_rewards: d.total_rewards.into(),
+    };
+
+    match response {
+        QueryResponse::TotalDappCount(total) => to_binary(&TotalDappsResponse { total }),
+        QueryResponse::Dapp(dapp) => to_binary(&to_cw_dapp(dapp)),
+        QueryResponse::AllDapps(dapps) => to_binary(&AllDappsResponse {
+            dapps: dapps.into_iter().map(to_cw_dapp).collect(),
+        }),
+    }
+    .map_err(Error::from)
 }
 
 /// Parse a trusted cosmwasm reply into a core msg

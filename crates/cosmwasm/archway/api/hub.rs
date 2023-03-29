@@ -7,9 +7,9 @@ use cosmwasm_std::{Coin, Deps, DepsMut, Env, SubMsg, WasmMsg};
 use kv_storage::{MutStorage, Storage};
 
 use referrals_core::hub::{
-    CollectQuery, DappExternalQuery, HandleReply, MutableCollectStore, MutableDappStore,
-    MutableReferralStore, NonZeroPercent, ReadonlyCollectStore, ReadonlyDappStore,
-    ReadonlyReferralStore, ReferralCode,
+    CollectQuery, DappExternalQuery, DappsQuery, HandleReply, MutableCollectStore,
+    MutableDappStore, MutableReferralStore, NonZeroPercent, ReadonlyCollectStore,
+    ReadonlyDappStore, ReadonlyReferralStore, ReferralCode,
 };
 use referrals_core::{FallibleApi, Id};
 use referrals_cw::rewards_pot::{
@@ -470,6 +470,45 @@ where
     ) -> Result<(), Self::Error> {
         self.core_storage_mut()
             .set_dapp_total_collected(dapp, total)
+            .map_err(ApiError::from)
+    }
+}
+
+impl<'a, Store> DappsQuery for Api<'a, Hub, Store>
+where
+    Store: Storage,
+{
+    fn total_dapp_count(&self) -> Result<u64, Self::Error> {
+        self.core_storage()
+            .total_dapp_count()
+            .map_err(ApiError::from)
+    }
+
+    fn all_dapp_ids(&self, start: Option<u64>, limit: Option<u64>) -> Result<Vec<Id>, Self::Error> {
+        self.core_storage()
+            .all_dapp_ids(start, limit)
+            .map_err(ApiError::from)
+    }
+
+    fn dapp_name(&self, dapp: &Id) -> Result<Option<String>, Self::Error> {
+        self.core_storage().dapp_name(dapp).map_err(ApiError::from)
+    }
+
+    fn dapp_repo_url(&self, dapp: &Id) -> Result<Option<String>, Self::Error> {
+        self.core_storage()
+            .dapp_repo_url(dapp)
+            .map_err(ApiError::from)
+    }
+
+    fn dapp_total_invocations(&self, dapp: &Id) -> Result<u64, Self::Error> {
+        self.core_storage()
+            .dapp_total_invocations(dapp)
+            .map_err(ApiError::from)
+    }
+
+    fn dapp_discrete_referrers(&self, dapp: &Id) -> Result<u64, Self::Error> {
+        self.core_storage()
+            .dapp_discrete_referrers(dapp)
             .map_err(ApiError::from)
     }
 }

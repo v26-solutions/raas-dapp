@@ -12,8 +12,13 @@ use referrals_archway_drivers::rewards_pot::{
 };
 use referrals_core::hub::{self as hub_core, Kind, Msg, Registration};
 use referrals_core::Id;
-use referrals_cw::rewards_pot::{AdminResponse, DappResponse, TotalRewardsResponse};
-use referrals_cw::{ExecuteMsg, ReferralCodeResponse, WithReferralCode};
+use referrals_cw::rewards_pot::{
+    AdminResponse, DappResponse as PotDappResponse, TotalRewardsResponse,
+};
+use referrals_cw::{
+    AllDappsResponse, DappResponse, ExecuteMsg, QueryMsg, ReferralCodeResponse, TotalDappsResponse,
+    WithReferralCode,
+};
 
 use crate::{check, expect, pretty};
 
@@ -29,7 +34,7 @@ pub fn wasm_query_handler(query: &WasmQuery) -> QuerierResult {
                 PotQueryMsg::TotalRewards {} => cosmwasm_std::to_binary(&TotalRewardsResponse {
                     total: Uint128::new(5000),
                 }),
-                PotQueryMsg::Dapp {} => cosmwasm_std::to_binary(&DappResponse {
+                PotQueryMsg::Dapp {} => cosmwasm_std::to_binary(&PotDappResponse {
                     dapp: "dapp".to_owned(),
                 }),
                 PotQueryMsg::Admin {} => cosmwasm_std::to_binary(&AdminResponse {
@@ -100,6 +105,14 @@ macro_rules! exec_ok {
             WithReferralCode::from($msg)
         )
     };
+}
+
+macro_rules! query_ok {
+    ($deps:ident, $msg:expr) => {{
+        let bin = hub::query($deps.as_ref(), env!(), $msg).unwrap();
+
+        cosmwasm_std::from_binary(&bin).unwrap()
+    }};
 }
 
 #[test]
@@ -366,6 +379,69 @@ fn plumbing_works() {
               ],
               attributes: [],
               events: [],
+            )"#]],
+    );
+
+    let res: TotalDappsResponse = query_ok!(deps, QueryMsg::TotalDapps {});
+
+    check(
+        pretty(&res),
+        expect![[r#"
+        (
+          total: 1,
+        )"#]],
+    );
+
+    let res: DappResponse = query_ok!(
+        deps,
+        QueryMsg::Dapp {
+            dapp: "dapp".to_owned()
+        }
+    );
+
+    check(
+        pretty(&res),
+        expect![[r#"
+            (
+              address: "dapp",
+              active: true,
+              name: Some("dapp"),
+              percent: 75,
+              repo_url: None,
+              fee: Some("1000"),
+              total_invocations: 1,
+              discrete_referrers: 1,
+              total_contributions: "750",
+              total_rewards: "5000",
+            )"#]],
+    );
+
+    let res: AllDappsResponse = query_ok!(
+        deps,
+        QueryMsg::AllDapps {
+            start: None,
+            limit: None
+        }
+    );
+
+    check(
+        pretty(&res),
+        expect![[r#"
+            (
+              dapps: [
+                (
+                  address: "dapp",
+                  active: true,
+                  name: Some("dapp"),
+                  percent: 75,
+                  repo_url: None,
+                  fee: Some("1000"),
+                  total_invocations: 1,
+                  discrete_referrers: 1,
+                  total_contributions: "750",
+                  total_rewards: "5000",
+                ),
+              ],
             )"#]],
     );
 }

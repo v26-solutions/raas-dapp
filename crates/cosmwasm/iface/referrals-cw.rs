@@ -105,7 +105,54 @@ pub struct ReferralCodeResponse {
 }
 
 #[cw_serde]
-pub enum QueryMsg {}
+#[derive(cosmwasm_schema::QueryResponses)]
+pub enum QueryMsg {
+    #[returns(TotalDappsResponse)]
+    TotalDapps {},
+    #[returns(DappResponse)]
+    Dapp { dapp: String },
+    #[returns(AllDappsResponse)]
+    AllDapps {
+        start: Option<u64>,
+        limit: Option<u64>,
+    },
+}
+
+#[cw_serde]
+pub struct TotalDappsResponse {
+    /// Total number of dApps ever activated
+    pub total: u64,
+}
+
+#[cw_serde]
+pub struct DappResponse {
+    /// Address of the dApp
+    pub address: String,
+    /// Active status
+    pub active: bool,
+    /// Name of the dApp (if Active)
+    pub name: Option<String>,
+    /// Percent of fee shared with referrers
+    pub percent: u8,
+    /// Repo URL if set
+    pub repo_url: Option<String>,
+    /// Fee amount if set
+    pub fee: Option<Uint128>,
+    /// Total invocations by all referrers
+    pub total_invocations: u64,
+    /// Number of discrete referrers interacting with the dApp
+    pub discrete_referrers: u64,
+    /// Total contributions made to referrers
+    pub total_contributions: Uint128,
+    /// Total rewards earned by dApp
+    pub total_rewards: Uint128,
+}
+
+#[cw_serde]
+pub struct AllDappsResponse {
+    /// All the dApp's requested
+    pub dapps: Vec<DappResponse>,
+}
 
 impl From<ExecuteMsg> for WithReferralCode<ExecuteMsg> {
     fn from(msg: ExecuteMsg) -> Self {
@@ -116,6 +163,7 @@ impl From<ExecuteMsg> for WithReferralCode<ExecuteMsg> {
     }
 }
 
+// Custom `Deserialize` required for flattened msg in `WithReferralCode` wrapper
 impl<'de, Msg> Deserialize<'de> for WithReferralCode<Msg>
 where
     Msg: Deserialize<'de>,
