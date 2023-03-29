@@ -1,4 +1,4 @@
-use referrals_core::hub::{DappQuery, MutableDappStore, ReadonlyDappStore};
+use referrals_core::hub::{DappExternalQuery, MutableDappStore, ReadonlyDappStore};
 
 use super::*;
 
@@ -67,7 +67,7 @@ impl MutableDappStore for MockApi {
 
 pub const SELF_ID: &str = "self";
 
-impl DappQuery for MockApi {
+impl DappExternalQuery for MockApi {
     fn self_id(&self) -> Result<Id, Self::Error> {
         Ok(Id::from(SELF_ID))
     }
@@ -83,8 +83,8 @@ impl DappQuery for MockApi {
             .map_or_else(|| Id::from(SELF_ID), Id::from))
     }
 
-    fn current_fee(&self, _id: &Id) -> Result<NonZeroU128, Self::Error> {
-        Ok(self.current_fee.unwrap())
+    fn current_fee(&self, _id: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
+        Ok(self.current_fee)
     }
 }
 

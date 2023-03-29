@@ -11,6 +11,8 @@ pub enum Error<S> {
     Storage(#[from] S),
     #[error("not found")]
     NotFound,
+    #[error("index out of bounds")]
+    IndexOutOfBounds,
 }
 
 pub struct Storage<T>(T);
@@ -40,7 +42,7 @@ mod hub {
     use std::num::NonZeroU128;
 
     use referrals_core::hub::{
-        MutableCollectStore, MutableDappStore, MutableReferralStore, NonZeroPercent,
+        DappsQuery, MutableCollectStore, MutableDappStore, MutableReferralStore, NonZeroPercent,
         ReadonlyCollectStore, ReadonlyDappStore, ReadonlyReferralStore, ReferralCode,
     };
     use referrals_core::Id;
@@ -50,7 +52,13 @@ mod hub {
     use crate::{Error, Storage};
 
     mod dapp {
-        use ::kv_storage::{map, Map};
+        use ::kv_storage::{item, map, Item, Map};
+
+        pub static DAPP_LAST_INDEX: Item<u64> = item!("dapp_last_index");
+
+        pub static DAPP_INDEX: Map<1024, u64, String> = map!("dapp_index");
+
+        pub static DAPP_REVERSE_INDEX: Map<1024, &str, u64> = map!("dapp_reverse_index");
 
         pub static DAPPS: Map<1024, &str, String> = map!("dapps");
 
@@ -107,6 +115,16 @@ mod hub {
         T: MutKvStorage,
     {
         fn add_dapp(&mut self, id: &Id, name: String) -> Result<(), Self::Error> {
+            if !dapp::DAPP_REVERSE_INDEX.has_key(&self.0, id.as_str())? {
+                let index = dapp::DAPP_LAST_INDEX
+                    .may_load(&self.0)?
+                    .map_or(0, |count| count + 1);
+
+                dapp::DAPP_INDEX.save(&mut self.0, index, id.as_str().to_owned())?;
+                dapp::DAPP_REVERSE_INDEX.save(&mut self.0, id.as_str(), index)?;
+                dapp::DAPP_LAST_INDEX.save(&mut self.0, index)?;
+            }
+
             dapp::DAPPS
                 .save(&mut self.0, id.as_str(), &name)
                 .map_err(Error::from)
@@ -155,6 +173,10 @@ mod hub {
         pub static LATEST_CODE: Item<u64> = item!("latest_code");
 
         pub static INVOCATION_COUNTS: Map<1024, (&str, u64), u64> = map!("invocation_counts");
+
+        pub static TOTAL_INVOCATION_COUNTS: Map<1024, &str, u64> = map!("total_invocation_counts");
+
+        pub static DISCRETE_REFERRERS: Map<1024, &str, u64> = map!("discrete_referrers");
 
         pub static CODE_TOTAL_EARNINGS: Map<1024, u64, NonZeroU128> = map!("code_total_earnings");
 
@@ -238,12 +260,34 @@ mod hub {
             dapp: &Id,
             code: ReferralCode,
         ) -> Result<(), Self::Error> {
-            let current = referral::INVOCATION_COUNTS
+            let current_per_referrer = referral::INVOCATION_COUNTS
                 .may_load(&self.0, (dapp.as_str(), code.to_u64()))?
+                .unwrap_or(0);
+
+            if current_per_referrer == 0 {
+                let discrete_referrers = referral::DISCRETE_REFERRERS
+                    .may_load(&self.0, dapp.as_str())?
+                    .unwrap_or(0);
+
+                referral::DISCRETE_REFERRERS.save(
+                    &mut self.0,
+                    dapp.as_str(),
+                    discrete_referrers + 1,
+                )?;
+            }
+
+            let current_total = referral::TOTAL_INVOCATION_COUNTS
+                .may_load(&self.0, dapp.as_str())?
                 .unwrap_or_default();
 
-            referral::INVOCATION_COUNTS
-                .save(&mut self.0, (dapp.as_str(), code.to_u64()), current + 1)
+            referral::INVOCATION_COUNTS.save(
+                &mut self.0,
+                (dapp.as_str(), code.to_u64()),
+                current_per_referrer + 1,
+            )?;
+
+            referral::TOTAL_INVOCATION_COUNTS
+                .save(&mut self.0, dapp.as_str(), current_total + 1)
                 .map_err(Error::from)
         }
 
@@ -275,6 +319,77 @@ mod hub {
         ) -> Result<(), Self::Error> {
             referral::DAPP_CONTRIBUTIONS
                 .save(&mut self.0, dapp.as_str(), contributions)
+                .map_err(Error::from)
+        }
+    }
+
+    // implementation requires stores from both `dapp` & `referral`
+    impl<T> DappsQuery for Storage<T>
+    where
+        T: ReadonlyKvStorage,
+    {
+        fn total_dapp_count(&self) -> Result<u64, Self::Error> {
+            dapp::DAPP_LAST_INDEX
+                .may_load(&self.0)
+                // add 1 to 0-based index
+                .map(|maybe_idx| maybe_idx.map_or(0, |idx| idx + 1))
+                .map_err(Error::from)
+        }
+
+        fn all_dapp_ids(
+            &self,
+            start: Option<u64>,
+            limit: Option<u64>,
+        ) -> Result<Vec<Id>, Self::Error> {
+            let Some(last_index) = dapp::DAPP_LAST_INDEX.may_load(&self.0)? else {
+                return Ok(vec![]);
+            };
+
+            let start = start.unwrap_or(0);
+
+            if start > last_index {
+                return Err(Error::IndexOutOfBounds);
+            }
+
+            let limit = match limit {
+                Some(l) => (start + l).min(last_index),
+                None => last_index,
+            };
+
+            (start..=limit)
+                .map(|idx| {
+                    dapp::DAPP_INDEX
+                        .may_load(&self.0, idx)
+                        .map_err(Error::from)?
+                        .ok_or(Error::NotFound)
+                        .map(Id::from)
+                })
+                .collect()
+        }
+
+        fn dapp_name(&self, dapp: &Id) -> Result<Option<String>, Self::Error> {
+            dapp::DAPPS
+                .may_load(&self.0, dapp.as_str())
+                .map_err(Error::from)
+        }
+
+        fn dapp_repo_url(&self, dapp: &Id) -> Result<Option<String>, Self::Error> {
+            dapp::REPO_URL
+                .may_load(&self.0, dapp.as_str())
+                .map_err(Error::from)
+        }
+
+        fn dapp_total_invocations(&self, dapp: &Id) -> Result<u64, Self::Error> {
+            referral::TOTAL_INVOCATION_COUNTS
+                .may_load(&self.0, dapp.as_str())
+                .map(|maybe_count| maybe_count.unwrap_or(0))
+                .map_err(Error::from)
+        }
+
+        fn dapp_discrete_referrers(&self, dapp: &Id) -> Result<u64, Self::Error> {
+            referral::DISCRETE_REFERRERS
+                .may_load(&self.0, dapp.as_str())
+                .map(|maybe_count| maybe_count.unwrap_or(0))
                 .map_err(Error::from)
         }
     }

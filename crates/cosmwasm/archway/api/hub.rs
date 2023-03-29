@@ -7,7 +7,7 @@ use cosmwasm_std::{Coin, Deps, DepsMut, Env, SubMsg, WasmMsg};
 use kv_storage::{MutStorage, Storage};
 
 use referrals_core::hub::{
-    CollectQuery, DappQuery, HandleReply, MutableCollectStore, MutableDappStore,
+    CollectQuery, DappExternalQuery, HandleReply, MutableCollectStore, MutableDappStore,
     MutableReferralStore, NonZeroPercent, ReadonlyCollectStore, ReadonlyDappStore,
     ReadonlyReferralStore, ReferralCode,
 };
@@ -187,7 +187,7 @@ where
     }
 }
 
-impl<'a, Store> DappQuery for Api<'a, Hub, Store>
+impl<'a, Store> DappExternalQuery for Api<'a, Hub, Store>
 where
     Store: Storage,
 {
@@ -213,15 +213,13 @@ where
         Ok(Id::from(response.admin))
     }
 
-    fn current_fee(&self, id: &Id) -> Result<NonZeroU128, Self::Error> {
+    fn current_fee(&self, id: &Id) -> Result<Option<NonZeroU128>, Self::Error> {
         let response: FlatFeeResponse = self
             .querier
             .query(&ArchwayQuery::flat_fee(id.as_str()).into())
             .map_err(ApiError::CosmWasmStd)?;
 
-        NonZeroU128::new(response.flat_fee_amount.amount.u128())
-            .ok_or(Error::DappFeeNotSet)
-            .map_err(ApiError::Mode)
+        Ok(NonZeroU128::new(response.flat_fee_amount.amount.u128()))
     }
 }
 

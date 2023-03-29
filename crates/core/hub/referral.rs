@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{FallibleApi, Id};
 
-use super::{DappQuery, Error, ReadonlyDappStore};
+use super::{DappExternalQuery, Error, ReadonlyDappStore};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Default)]
 pub struct Code(u64);
@@ -195,7 +195,7 @@ where
 /// - There is an API error.
 pub fn record<Api>(api: &mut Api, sender: &Id, code: Code) -> Result<(), Error<Api::Error>>
 where
-    Api: ReadonlyStore + MutableStore + DappQuery + ReadonlyDappStore,
+    Api: ReadonlyStore + MutableStore + DappExternalQuery + ReadonlyDappStore,
 {
     if !api.dapp_exists(sender)? {
         return Err(Error::DappNotActivated);
@@ -207,7 +207,9 @@ where
 
     api.increment_invocations(sender, code)?;
 
-    let current_fee = api.current_fee(sender)?;
+    let Some(current_fee) = api.current_fee(sender)? else {
+        return Err(Error::FeeNotSet);
+    };
 
     let Some(referrer_share) = api
         .percent(sender)?

@@ -112,6 +112,11 @@ fn dapp_storage_works() {
             {
             	referrals_storage::hub::dapp::collector::id1 => "collector"
             	referrals_storage::hub::dapp::collector::id2 => "another_collector"
+            	referrals_storage::hub::dapp::dapp_index::00000000 => "id1"
+            	referrals_storage::hub::dapp::dapp_index::00000001 => "id2"
+            	referrals_storage::hub::dapp::dapp_last_index => 1
+            	referrals_storage::hub::dapp::dapp_reverse_index::id1 => 0
+            	referrals_storage::hub::dapp::dapp_reverse_index::id2 => 1
             	referrals_storage::hub::dapp::dapps::id1 => "dapp1"
             	referrals_storage::hub::dapp::dapps::id2 => "dapp2"
             	referrals_storage::hub::dapp::percent::id1 => 100
@@ -208,10 +213,14 @@ fn referral_storage_works() {
             	referrals_storage::hub::referral::codes::00000002 => "id2"
             	referrals_storage::hub::referral::dapp_contributions::dapp1 => 1000
             	referrals_storage::hub::referral::dapp_contributions::dapp2 => 2000
+            	referrals_storage::hub::referral::discrete_referrers::dapp1 => 1
+            	referrals_storage::hub::referral::discrete_referrers::dapp2 => 2
             	referrals_storage::hub::referral::invocation_counts::dapp1:00000001 => 1
             	referrals_storage::hub::referral::invocation_counts::dapp2:00000001 => 1
             	referrals_storage::hub::referral::invocation_counts::dapp2:00000002 => 1
             	referrals_storage::hub::referral::latest_code => 2
+            	referrals_storage::hub::referral::total_invocation_counts::dapp1 => 1
+            	referrals_storage::hub::referral::total_invocation_counts::dapp2 => 2
             }
         "#]],
     );

@@ -14,6 +14,8 @@ pub enum Error<Api> {
     InvalidRewardsAdmin,
     #[error("invalid rewards pot admin")]
     InvalidRewardsPotAdmin,
+    #[error("fee not set")]
+    FeeNotSet,
     #[error("rewards pot already set")]
     RewardsPotAlreadySet,
     #[error("math overflow")]
@@ -26,6 +28,7 @@ pub mod collect;
 pub mod common;
 pub mod dapp;
 pub mod msg;
+pub mod query;
 pub mod referral;
 pub mod reply;
 
@@ -44,11 +47,16 @@ pub use referral::MutableStore as MutableReferralStore;
 pub use referral::ReadonlyStore as ReadonlyReferralStore;
 
 pub use collect::Query as CollectQuery;
-pub use dapp::Query as DappQuery;
+pub use dapp::ExternalQuery as DappExternalQuery;
 
 pub use reply::handle as handle_reply;
 pub use reply::Handle as HandleReply;
 pub use reply::{Command, Reply};
+
+pub use query::handle as handle_query;
+pub use query::Dapps as DappsQuery;
+pub use query::Request as QueryRequest;
+pub use query::Response as QueryResponse;
 
 /// Handle a message, this is the defacto entry point.
 ///
@@ -59,7 +67,7 @@ pub fn exec<Api>(api: &mut Api, msg: Msg) -> Result<Reply, Error<Api::Error>>
 where
     Api: ReadonlyDappStore
         + MutableDappStore
-        + DappQuery
+        + DappExternalQuery
         + ReadonlyReferralStore
         + MutableReferralStore
         + ReadonlyCollectStore

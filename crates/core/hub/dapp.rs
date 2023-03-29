@@ -94,7 +94,7 @@ pub trait MutableStore: FallibleApi {
     fn set_rewards_pot(&mut self, id: &Id, rewards_pot: Id) -> Result<(), Self::Error>;
 }
 
-pub trait Query: FallibleApi {
+pub trait ExternalQuery: FallibleApi {
     /// Returns the Id of the referral system dApp.
     ///
     /// # Errors
@@ -116,12 +116,12 @@ pub trait Query: FallibleApi {
     /// This function will return an error depending on the implementor.
     fn rewards_pot_admin(&self, id: &Id) -> Result<Id, Self::Error>;
 
-    /// Returns the current fee set by the dApp.
+    /// Returns the current fee set by the dApp, if any.
     ///
     /// # Errors
     ///
     /// This function will return an error depending on the implementor.
-    fn current_fee(&self, id: &Id) -> Result<NonZeroU128, Self::Error>;
+    fn current_fee(&self, id: &Id) -> Result<Option<NonZeroU128>, Self::Error>;
 }
 
 /// Activate a dApp within the system, setting at least the initial percent & collector.
@@ -140,7 +140,7 @@ pub fn activate<Api>(
     collector: Id,
 ) -> Result<Command, Error<Api::Error>>
 where
-    Api: ReadonlyStore + MutableStore + Query,
+    Api: ReadonlyStore + MutableStore + ExternalQuery,
 {
     if api.dapp_exists(&sender)? {
         return Err(Error::AlreadyRegistered);
@@ -174,7 +174,7 @@ pub fn set_rewards_pot<Api>(
     rewards_pot: Id,
 ) -> Result<Command, Error<Api::Error>>
 where
-    Api: ReadonlyStore + MutableStore + Query,
+    Api: ReadonlyStore + MutableStore + ExternalQuery,
 {
     if !api.dapp_exists(&dapp)? {
         return Err(Error::DappNotActivated);
@@ -212,7 +212,7 @@ pub fn deactivate<Api>(
     rewards_recipient: Id,
 ) -> Result<[Command; 3], Error<Api::Error>>
 where
-    Api: ReadonlyStore + MutableStore + Query,
+    Api: ReadonlyStore + MutableStore + ExternalQuery,
 {
     if !api.dapp_exists(&dapp)? {
         return Err(Error::DappNotActivated);
