@@ -72,13 +72,17 @@ pub fn artifacts_dir() -> String {
 
 pub mod archway {
     use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
         io::{BufRead, BufReader},
         path::PathBuf,
         time,
     };
 
     use anyhow::{anyhow, Result};
-    use referrals_cw::InstantiateMsg;
+    use bip39::Mnemonic;
+    use nanorand::{Rng, WyRand};
+    use referrals_cw::{ExecuteMsg, InstantiateMsg};
     use serde::Serialize;
     use serde_json::{
         from_slice as from_json_bytes, from_str as from_json_str, Value as JsonValue,
@@ -105,10 +109,66 @@ pub mod archway {
         dotenv::var("ARCHWAY_HOME_DIR").unwrap_or_else(|_| "target/chains".to_owned())
     }
 
+    pub fn archwayd_local_seed() -> String {
+        dotenv::var("ARCHWAY_LOCAL_SEED").unwrap_or_else(|_| "v26-solutions".to_owned())
+    }
+
+    pub fn archwayd_local_n_accounts() -> usize {
+        dotenv::var("ARCHWAY_LOCAL_N_ACCOUNTS")
+            .ok()
+            .and_then(|n| n.parse().ok())
+            .unwrap_or(10)
+            .max(1) // always at least one account
+    }
+
+    pub fn generate_n_mnemonics(seed: &str, n: usize) -> Vec<String> {
+        let mut hasher = DefaultHasher::default();
+        seed.hash(&mut hasher);
+        let seed = hasher.finish();
+
+        let mut rng = WyRand::new_seed(seed);
+
+        let mut bytes = [0u8; 16];
+
+        (0..n)
+            .map(|_| {
+                rng.fill_bytes(&mut bytes);
+                Mnemonic::from_entropy(&bytes).unwrap().to_string()
+            })
+            .collect()
+    }
+
     pub fn absolute_path(sh: &Shell, f: impl FnOnce() -> String) -> PathBuf {
         let mut cwd = sh.current_dir();
         cwd.push(f());
         cwd
+    }
+
+    pub fn container_cmd<'a>(sh: &'a Shell, entrypoint: &str) -> Cmd<'a> {
+        let mut artifacts_dir = sh.current_dir();
+        artifacts_dir.push(crate::artifacts_dir());
+
+        let home_dir = absolute_path(sh, archwayd_home_dir);
+
+        cmd!(
+            sh,
+            "docker
+            run
+            --interactive
+            --rm
+            --volume {artifacts_dir}:/artifacts
+            --volume {home_dir}:/root
+            --entrypoint {entrypoint}
+            {IMAGE_NAME}:latest"
+        )
+    }
+
+    pub fn sh_cmd(sh: &Shell) -> Cmd {
+        container_cmd(sh, "/bin/sh")
+    }
+
+    pub fn archwayd_cmd(sh: &Shell) -> Cmd {
+        container_cmd(sh, "archwayd")
     }
 
     pub fn clone_archwayd_repo(sh: &Shell) -> Result<()> {
@@ -129,20 +189,165 @@ pub mod archway {
         Ok(())
     }
 
-    pub fn start_local(sh: &Shell) -> Result<()> {
-        let archwayd_repo_dir = archwayd_repo_dir();
+    pub fn clear_chain(sh: &Shell) -> Result<()> {
+        sh_cmd(sh)
+            .args(["-c", "rm -rf /root/.archway"])
+            .ignore_status()
+            .ignore_stderr()
+            .run()?;
+        Ok(())
+    }
 
-        if !sh.path_exists(&archwayd_repo_dir) {
+    pub fn delete_account(sh: &Shell, account: &str) -> Result<()> {
+        archwayd_cmd(sh)
+            .args([
+                "keys",
+                "delete",
+                account,
+                "--yes",
+                "--keyring-backend",
+                "test",
+            ])
+            .ignore_status()
+            .ignore_stdout()
+            .ignore_stderr()
+            .quiet()
+            .run()?;
+        Ok(())
+    }
+
+    pub fn add_account(sh: &Shell, account: &str, mnemonic: &str) -> Result<()> {
+        archwayd_cmd(sh)
+            .args([
+                "keys",
+                "add",
+                account,
+                "--recover",
+                "--keyring-backend",
+                "test",
+            ])
+            .stdin(format!("{mnemonic}\n"))
+            .ignore_stdout()
+            .ignore_stderr()
+            .quiet()
+            .run()?;
+        Ok(())
+    }
+
+    pub fn account_address(sh: &Shell, account: &str) -> Result<String> {
+        let out = archwayd_cmd(sh)
+            .args([
+                "keys",
+                "show",
+                account,
+                "--keyring-backend",
+                "test",
+                "--output",
+                "json",
+            ])
+            .output()?;
+
+        let json: JsonValue = from_json_bytes(&out.stdout)?;
+
+        json.as_object()
+            .and_then(|o| o.get("address"))
+            .and_then(JsonValue::as_str)
+            .ok_or_else(|| anyhow!("expected address field"))
+            .map(String::from)
+    }
+
+    pub fn print_mnemonics() -> Result<()> {
+        let archwayd_local_seed = archwayd_local_seed();
+        let archwayd_local_n_accounts = archwayd_local_n_accounts();
+        let mnemonics = generate_n_mnemonics(&archwayd_local_seed, archwayd_local_n_accounts);
+        for m in mnemonics {
+            println!("{m}");
+        }
+        Ok(())
+    }
+
+    pub fn init_local(sh: &Shell) -> Result<()> {
+        let archwayd_repo_dir = archwayd_repo_dir();
+        let archwayd_local_seed = archwayd_local_seed();
+        let archwayd_local_n_accounts = archwayd_local_n_accounts();
+
+        if !sh.path_exists(archwayd_repo_dir) {
             clone_archwayd_repo(sh)?;
+            build_archwayd_docker(sh)?;
         }
 
-        build_archwayd_docker(sh)?;
+        clear_chain(sh)?;
 
-        let mut localnet_dir = absolute_path(sh, || archwayd_repo_dir);
-        localnet_dir.push("contrib/localnet");
+        archwayd_cmd(sh)
+            .args(["init", "archway-id", "--chain-id", "localnet"])
+            .ignore_stderr()
+            .ignore_stdout()
+            .run()?;
 
-        let localnet_dir = localnet_dir.display();
+        let mnemonics = generate_n_mnemonics(&archwayd_local_seed, archwayd_local_n_accounts);
 
+        for (i, mnemonic) in mnemonics.iter().enumerate() {
+            let account = format!("test_{i}");
+
+            println!("\nAdding key {account}: {mnemonic}");
+            add_account(sh, &account, mnemonic)?;
+
+            let address = account_address(sh, &account)?;
+            println!("{account} address: {address}");
+
+            archwayd_cmd(sh)
+                .args([
+                    "add-genesis-account",
+                    &account,
+                    "1000000000000stake",
+                    "--keyring-backend",
+                    "test",
+                ])
+                .ignore_stderr()
+                .ignore_stdout()
+                .quiet()
+                .run()?;
+        }
+
+        archwayd_cmd(sh)
+            .args([
+                "gentx",
+                "test_0",
+                "100000000stake",
+                "--chain-id",
+                "localnet",
+                "--keyring-backend",
+                "test",
+            ])
+            .ignore_stderr()
+            .ignore_stdout()
+            .run()?;
+
+        archwayd_cmd(sh)
+            .arg("collect-gentxs")
+            .ignore_stderr()
+            .ignore_stdout()
+            .run()?;
+
+        archwayd_cmd(sh)
+            .arg("validate-genesis")
+            .ignore_stderr()
+            .ignore_stdout()
+            .run()?;
+
+        sh_cmd(sh)
+            .args([
+                "-c",
+                "sed -i 's/127.0.0.1/0.0.0.0/g' /root/.archway/config/config.toml",
+            ])
+            .ignore_status()
+            .ignore_stderr()
+            .run()?;
+
+        Ok(())
+    }
+
+    pub fn start_local(sh: &Shell) -> Result<()> {
         let node_cmd = duct::cmd!(
             "docker",
             "run",
@@ -150,16 +355,15 @@ pub mod archway {
             CONTAINER_NAME,
             "--rm",
             "--volume",
-            format!("{localnet_dir}:/opt"),
-            "--volume",
             format!("{}:/root", absolute_path(sh, archwayd_home_dir).display()),
             "--publish",
             "9090:9090",
             "--publish",
             "26657:26657",
             "--entrypoint",
-            "/opt/localnet.sh",
+            "archwayd",
             format!("{IMAGE_NAME}:latest"),
+            "start"
         );
 
         let node_handle = node_cmd.stdout_to_stderr().unchecked().reader()?;
@@ -203,26 +407,12 @@ pub mod archway {
             .ok_or_else(|| anyhow!("Failed to find local node IP address"))
     }
 
-    pub fn archwayd_cmd(sh: &Shell) -> Result<Cmd> {
-        let mut artifacts_dir = sh.current_dir();
-        artifacts_dir.push(crate::artifacts_dir());
-
-        let home_dir = absolute_path(sh, archwayd_home_dir);
-
+    pub fn archwayd_node_cmd(sh: &Shell) -> Result<Cmd> {
         let ip = local_node_ip(sh)?;
 
-        Ok(cmd!(
-            sh,
-            "docker
-            run
-            --interactive
-            --rm
-            --volume {artifacts_dir}:/artifacts
-            --volume {home_dir}:/root
-            --entrypoint archwayd
-            {IMAGE_NAME}:latest
-            --node tcp://{ip}:26657"
-        ))
+        let cmd = archwayd_cmd(sh).args(["--node", &format!("tcp://{ip}:26657")]);
+
+        Ok(cmd)
     }
 
     pub fn run_cmd(cmd: Cmd) -> Result<JsonValue> {
@@ -238,12 +428,12 @@ pub mod archway {
         Ok(json)
     }
 
-    pub fn send_tx(cmd: Cmd, gas: Option<u64>) -> Result<String> {
+    pub fn send_tx(cmd: Cmd, from: &str, gas: Option<u64>) -> Result<String> {
         let gas = gas.map_or_else(|| "auto".to_owned(), |g| g.to_string());
 
         let cmd = cmd.arg("--gas").arg(gas).args([
             "--from",
-            "fd",
+            from,
             "--yes",
             "--keyring-backend",
             "test",
@@ -281,7 +471,7 @@ pub mod archway {
     }
 
     pub fn query_tx(sh: &Shell, hash: &str) -> Result<Option<JsonValue>> {
-        let cmd = archwayd_cmd(sh)?.args(["query", "tx", hash, "--output", "json"]);
+        let cmd = archwayd_node_cmd(sh)?.args(["query", "tx", hash, "--output", "json"]);
 
         match run_cmd(cmd) {
             Ok(json) => Ok(Some(json)),
@@ -296,8 +486,8 @@ pub mod archway {
     }
 
     // round-trip
-    pub fn execute_tx(sh: &Shell, cmd: Cmd, gas: Option<u64>) -> Result<JsonValue> {
-        let tx_hash = send_tx(cmd, gas)?;
+    pub fn execute_tx(sh: &Shell, cmd: Cmd, from: &str, gas: Option<u64>) -> Result<JsonValue> {
+        let tx_hash = send_tx(cmd, from, gas)?;
         loop {
             let Some(json) = query_tx(sh, &tx_hash)? else {
                     std::thread::sleep(time::Duration::from_secs(1));
@@ -308,9 +498,9 @@ pub mod archway {
         }
     }
 
-    pub fn store_contract(sh: &Shell, path: &str) -> Result<u64> {
-        let cmd = archwayd_cmd(sh)?.args(["tx", "wasm", "store", path]);
-        let json = execute_tx(sh, cmd, None)?;
+    pub fn store_contract(sh: &Shell, from: &str, path: &str) -> Result<u64> {
+        let cmd = archwayd_node_cmd(sh)?.args(["tx", "wasm", "store", path]);
+        let json = execute_tx(sh, cmd, from, None)?;
 
         let code_id = json
             .as_object()
@@ -335,7 +525,13 @@ pub mod archway {
         Ok(code_id)
     }
 
-    pub fn init_contract<Msg>(sh: &Shell, code_id: u64, name: &str, msg: Msg) -> Result<String>
+    pub fn init_contract<Msg>(
+        sh: &Shell,
+        from: &str,
+        code_id: u64,
+        name: &str,
+        msg: Msg,
+    ) -> Result<String>
     where
         Msg: Serialize,
     {
@@ -347,7 +543,7 @@ pub mod archway {
 
         let msg = serde_json::to_string(&msg)?;
 
-        let cmd = archwayd_cmd(sh)?.args([
+        let cmd = archwayd_node_cmd(sh)?.args([
             "tx",
             "wasm",
             "init",
@@ -358,7 +554,7 @@ pub mod archway {
             "--no-admin",
         ]);
 
-        let json = execute_tx(sh, cmd, None)?;
+        let json = execute_tx(sh, cmd, from, None)?;
 
         let addr = json
             .as_object()
@@ -394,12 +590,34 @@ pub mod archway {
         Ok(addr)
     }
 
+    pub fn exec_contract<Msg>(
+        sh: &Shell,
+        from: &str,
+        address: &str,
+        msg: Msg,
+        gas: Option<u64>,
+    ) -> Result<JsonValue>
+    where
+        Msg: Serialize,
+    {
+        let msg = serde_json::to_string(&msg)?;
+
+        let cmd = archwayd_node_cmd(sh)?.args(["tx", "wasm", "execute", address, msg.as_str()]);
+
+        execute_tx(sh, cmd, from, gas)
+    }
+
     pub fn deploy_local(sh: &Shell) -> Result<()> {
-        let hub_code_id = store_contract(sh, "/artifacts/archway_referrals_hub.wasm")?;
-        let pot_code_id = store_contract(sh, "/artifacts/archway_referrals_rewards_pot.wasm")?;
+        let hub_code_id = store_contract(sh, "test_0", "/artifacts/archway_referrals_hub.wasm")?;
+        let pot_code_id = store_contract(
+            sh,
+            "test_0",
+            "/artifacts/archway_referrals_rewards_pot.wasm",
+        )?;
 
         let hub_addr = init_contract(
             sh,
+            "test_0",
             hub_code_id,
             "referrals_hub",
             InstantiateMsg {
@@ -408,6 +626,18 @@ pub mod archway {
         )?;
 
         println!("Referrals Hub Deployed at: {hub_addr}");
+
+        exec_contract(
+            sh,
+            "test_0",
+            &hub_addr,
+            ExecuteMsg::RegisterReferrer {},
+            Some(200_000),
+        )?;
+
+        let address = account_address(sh, "test_0")?;
+
+        println!("Referral Code Registered: {address} => 1");
 
         Ok(())
     }

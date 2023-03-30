@@ -36,12 +36,16 @@ enum Command {
 
 #[derive(Subcommand)]
 enum Archway {
+    #[command(about = "initialize a local node")]
+    InitLocal,
     #[command(about = "start a local node")]
     StartLocal,
     #[command(about = "deploy contracts to a local node")]
     DeployLocal,
     #[command(about = "remove local node directory")]
     Clean,
+    #[command(about = "print mnemonics of all test accounts")]
+    PrintMnemonics,
 }
 
 pub fn main() -> Result<()> {
@@ -61,9 +65,11 @@ pub fn main() -> Result<()> {
             use xtask::archway;
 
             match cmd {
+                Archway::InitLocal => archway::init_local(&sh),
                 Archway::StartLocal => archway::start_local(&sh),
                 Archway::DeployLocal => archway::deploy_local(&sh),
                 Archway::Clean => archway::clean(&sh),
+                Archway::PrintMnemonics => archway::print_mnemonics(),
             }
         }
     }
