@@ -30,8 +30,19 @@ enum Command {
     },
     #[command(about = "install used cargo plugins (if not using Nix)")]
     Install,
+    #[command(subcommand, about = "web client tasks")]
+    WebClient(WebClient),
     #[command(subcommand, about = "archway deployment tasks")]
     Archway(Archway),
+}
+
+#[derive(Subcommand)]
+enum WebClient {
+    #[command(about = "start the development server")]
+    Dev {
+        #[arg(long, help = "expose server on 0.0.0.0")]
+        host: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -61,6 +72,13 @@ pub fn main() -> Result<()> {
         Command::Dist => xtask::dist(&sh),
         Command::Dev { update } => xtask::dev(&sh, update),
         Command::Install => xtask::install(&sh),
+        Command::WebClient(cmd) => {
+            use xtask::web_client;
+
+            match cmd {
+                WebClient::Dev { host } => web_client::dev(&sh, host),
+            }
+        }
         Command::Archway(cmd) => {
             use xtask::archway;
 

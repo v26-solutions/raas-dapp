@@ -70,6 +70,44 @@ pub fn artifacts_dir() -> String {
     dotenv::var("ARTIFACTS_DIR").unwrap_or_else(|_| "artifacts".to_owned())
 }
 
+pub fn update_or_insert_dotenv(sh: &Shell, key: &str, value: &str) -> Result<()> {
+    let envfile = sh.read_file(".env")?;
+
+    let updated: String = envfile
+        .lines()
+        .filter(|l| !l.starts_with(key))
+        .chain([format!("{key} = \"{value}\"").as_str()])
+        .map(|s| format!("{s}\n"))
+        .collect();
+
+    sh.write_file(".env", updated)?;
+
+    Ok(())
+}
+
+pub mod web_client {
+    use anyhow::Result;
+    use xshell::{cmd, Shell};
+
+    pub fn dev(sh: &Shell, expose_host: bool) -> Result<()> {
+        sh.change_dir("client/web");
+
+        let expose_host = expose_host.then_some("--host");
+
+        cmd!(sh, "npm run dev -- {expose_host...}")
+            .envs(dotenv::vars().filter_map(|(key, var)| match key.as_str() {
+                "AUTO_LAST_DEPLOY_REFERRALS_HUB_ADDRESS" => {
+                    Some(("PUBLIC_REFERRAL_HUB_ADDRESS", var))
+                }
+                "AUTO_LAST_DEPLOY_REFERRAL_CODE" => Some(("PUBLIC_REFERRAL_HUB_CODE", var)),
+                _ => None,
+            }))
+            .run()?;
+
+        Ok(())
+    }
+}
+
 pub mod archway {
     use std::{
         collections::hash_map::DefaultHasher,
@@ -82,12 +120,16 @@ pub mod archway {
     use anyhow::{anyhow, Result};
     use bip39::Mnemonic;
     use nanorand::{Rng, WyRand};
-    use referrals_cw::{ExecuteMsg, InstantiateMsg};
-    use serde::Serialize;
+    use referrals_cw::{
+        AllDappsResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ReferralCodeResponse,
+    };
+    use serde::{de::DeserializeOwned, Serialize};
     use serde_json::{
         from_slice as from_json_bytes, from_str as from_json_str, Value as JsonValue,
     };
     use xshell::{cmd, Cmd, Shell};
+
+    use crate::update_or_insert_dotenv;
 
     pub const IMAGE_NAME: &str = "archwayd-xtask";
     pub const CONTAINER_NAME: &str = "local_archwayd_xtask";
@@ -344,6 +386,15 @@ pub mod archway {
             .ignore_stderr()
             .run()?;
 
+        sh_cmd(sh)
+            .args([
+                "-c",
+                r#"sed -i 's/cors_allowed_origins = \[\]/cors_allowed_origins = \["*"\]/g' target/chains/.archway/config/config.toml"#,
+            ])
+            .ignore_status()
+            .ignore_stderr()
+            .run()?;
+
         Ok(())
     }
 
@@ -525,6 +576,72 @@ pub mod archway {
         Ok(code_id)
     }
 
+    pub fn query_code_info(sh: &Shell, code_id: u64) -> Result<JsonValue> {
+        let out = archwayd_node_cmd(sh)?
+            .args([
+                "query",
+                "wasm",
+                "code-info",
+                &code_id.to_string(),
+                "--output",
+                "json",
+            ])
+            .ignore_status()
+            .output()?;
+
+        if !out.status.success() {
+            let err = std::str::from_utf8(&out.stderr)?;
+            return Err(anyhow!("{err}"));
+        }
+
+        let json = serde_json::from_slice(&out.stdout)?;
+
+        Ok(json)
+    }
+
+    pub fn build_contract_addr(
+        sh: &Shell,
+        from: &str,
+        code_id: u64,
+        label: &str,
+    ) -> Result<(String, String)> {
+        let code_hash = query_code_info(sh, code_id)?
+            .as_object()
+            .and_then(|o| o.get("data_hash"))
+            .and_then(JsonValue::as_str)
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| anyhow!("expected json object with 'data_hash' field"))?;
+
+        let from_address = account_address(sh, from)?;
+
+        let salt = hex::encode(label);
+
+        let out = archwayd_cmd(sh)
+            .args([
+                "query",
+                "wasm",
+                "build-address",
+                &code_hash,
+                &from_address,
+                &salt,
+            ])
+            .ignore_status()
+            .output()?;
+
+        if !out.status.success() {
+            let err = std::str::from_utf8(&out.stderr)?;
+            return Err(anyhow!("{err}"));
+        }
+
+        let address = String::from_utf8(out.stdout)?
+            .split_ascii_whitespace()
+            .next()
+            .unwrap()
+            .to_owned();
+
+        Ok((address, salt))
+    }
+
     pub fn init_contract<Msg>(
         sh: &Shell,
         from: &str,
@@ -541,17 +658,21 @@ pub mod archway {
 
         let label = format!("{name}:{timestamp}");
 
+        let (determined_address, salt) = build_contract_addr(sh, from, code_id, &label)?;
+
         let msg = serde_json::to_string(&msg)?;
 
         let cmd = archwayd_node_cmd(sh)?.args([
             "tx",
             "wasm",
-            "init",
+            "instantiate2",
             &code_id.to_string(),
             msg.as_str(),
+            salt.as_str(),
             "--label",
             label.as_str(),
-            "--no-admin",
+            "--admin",
+            determined_address.as_str(),
         ]);
 
         let json = execute_tx(sh, cmd, from, None)?;
@@ -587,6 +708,8 @@ pub mod archway {
             .ok_or_else(|| anyhow!("expected _contract_address attribute"))?
             .to_owned();
 
+        assert_eq!(addr, determined_address);
+
         Ok(addr)
     }
 
@@ -596,24 +719,76 @@ pub mod archway {
         address: &str,
         msg: Msg,
         gas: Option<u64>,
+        premium: u128,
     ) -> Result<JsonValue>
     where
         Msg: Serialize,
     {
         let msg = serde_json::to_string(&msg)?;
 
-        let cmd = archwayd_node_cmd(sh)?.args(["tx", "wasm", "execute", address, msg.as_str()]);
+        let cmd = archwayd_node_cmd(sh)?.args([
+            "tx",
+            "wasm",
+            "execute",
+            address,
+            msg.as_str(),
+            "--fees",
+            &format!("{premium}stake"),
+        ]);
 
         execute_tx(sh, cmd, from, gas)
     }
 
+    pub fn query_contract<Msg, Response>(sh: &Shell, address: &str, msg: Msg) -> Result<Response>
+    where
+        Msg: Serialize,
+        Response: DeserializeOwned,
+    {
+        let msg = serde_json::to_string(&msg)?;
+
+        let out = archwayd_node_cmd(sh)?
+            .args([
+                "query",
+                "wasm",
+                "contract-state",
+                "smart",
+                address,
+                msg.as_str(),
+                "--output",
+                "json",
+            ])
+            .ignore_status()
+            .output()?;
+
+        if !out.status.success() {
+            let err = std::str::from_utf8(&out.stderr)?;
+            return Err(anyhow!("{err}"));
+        }
+
+        let json: JsonValue = serde_json::from_slice(&out.stdout)?;
+
+        let data = json
+            .as_object()
+            .and_then(|o| o.get("data"))
+            .ok_or_else(|| anyhow!("expected json object with 'data' field"))?
+            .to_owned();
+
+        let res = serde_json::from_value(data)?;
+
+        Ok(res)
+    }
+
     pub fn deploy_local(sh: &Shell) -> Result<()> {
+        println!("Storing contracts...");
+
         let hub_code_id = store_contract(sh, "test_0", "/artifacts/archway_referrals_hub.wasm")?;
         let pot_code_id = store_contract(
             sh,
             "test_0",
             "/artifacts/archway_referrals_rewards_pot.wasm",
         )?;
+
+        println!("Instantiating Referrals Hub...");
 
         let hub_addr = init_contract(
             sh,
@@ -622,10 +797,13 @@ pub mod archway {
             "referrals_hub",
             InstantiateMsg {
                 rewards_pot_code_id: pot_code_id,
+                contract_premium: 1000u128.into(),
             },
         )?;
 
         println!("Referrals Hub Deployed at: {hub_addr}");
+
+        println!("Registering for referral code...");
 
         exec_contract(
             sh,
@@ -633,11 +811,41 @@ pub mod archway {
             &hub_addr,
             ExecuteMsg::RegisterReferrer {},
             Some(200_000),
+            1000,
         )?;
 
         let address = account_address(sh, "test_0")?;
 
-        println!("Referral Code Registered: {address} => 1");
+        let referral_code: ReferralCodeResponse = query_contract(
+            sh,
+            &hub_addr,
+            QueryMsg::RefferalCode {
+                referrer: address.clone(),
+            },
+        )?;
+
+        println!(
+            "Referral Code Registered: {address} => {}",
+            referral_code.code
+        );
+
+        let all_dapps: AllDappsResponse = query_contract(
+            sh,
+            &hub_addr,
+            QueryMsg::AllDapps {
+                start: None,
+                limit: None,
+            },
+        )?;
+
+        println!("{all_dapps:#?}");
+
+        update_or_insert_dotenv(sh, "AUTO_LAST_DEPLOY_REFERRALS_HUB_ADDRESS", &hub_addr)?;
+        update_or_insert_dotenv(
+            sh,
+            "AUTO_LAST_DEPLOY_REFERRAL_CODE",
+            &referral_code.code.to_string(),
+        )?;
 
         Ok(())
     }
