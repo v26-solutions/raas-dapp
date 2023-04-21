@@ -46,10 +46,15 @@ pub fn init(
 
     Response::default()
         .activate_dapp_referrals()
-        .referral_hub(env.contract.address)
+        .referral_hub(env.contract.address.clone())
         .dapp_name("referrals_hub")
         .referrer_percent(100)
         .collector(info.sender)
+        .done()?
+        .set_dapp_fee()
+        .referral_hub(env.contract.address.clone())
+        .dapp(env.contract.address)
+        .fee(msg.contract_premium)
         .done()
         .map_err(Error::from)
 }

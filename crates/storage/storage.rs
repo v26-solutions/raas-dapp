@@ -44,6 +44,7 @@ mod hub {
     use referrals_core::hub::{
         DappsQuery, MutableCollectStore, MutableDappStore, MutableReferralStore, NonZeroPercent,
         ReadonlyCollectStore, ReadonlyDappStore, ReadonlyReferralStore, ReferralCode,
+        ReferrersQuery,
     };
     use referrals_core::Id;
 
@@ -390,6 +391,18 @@ mod hub {
             referral::DISCRETE_REFERRERS
                 .may_load(&self.0, dapp.as_str())
                 .map(|maybe_count| maybe_count.unwrap_or(0))
+                .map_err(Error::from)
+        }
+    }
+
+    impl<T> ReferrersQuery for Storage<T>
+    where
+        T: ReadonlyKvStorage,
+    {
+        fn referral_code(&self, referrer: &Id) -> Result<Option<ReferralCode>, Self::Error> {
+            referral::CODE_OWNERS
+                .may_load(&self.0, referrer.as_str())
+                .map(|maybe_code| maybe_code.map(ReferralCode::from))
                 .map_err(Error::from)
         }
     }

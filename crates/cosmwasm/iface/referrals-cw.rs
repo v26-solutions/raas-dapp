@@ -11,6 +11,8 @@ pub mod rewards_pot;
 pub struct InstantiateMsg {
     /// Rewards pot contract code ID
     pub rewards_pot_code_id: u64,
+    /// Contract premium amount
+    pub contract_premium: Uint128,
 }
 
 #[derive(Serialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -116,6 +118,8 @@ pub enum QueryMsg {
         start: Option<u64>,
         limit: Option<u64>,
     },
+    #[returns(ReferralCodeResponse)]
+    RefferalCode { referrer: String },
 }
 
 #[cw_serde]

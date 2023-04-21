@@ -9,7 +9,7 @@ use kv_storage::{MutStorage, Storage};
 use referrals_core::hub::{
     CollectQuery, DappExternalQuery, DappsQuery, HandleReply, MutableCollectStore,
     MutableDappStore, MutableReferralStore, NonZeroPercent, ReadonlyCollectStore,
-    ReadonlyDappStore, ReadonlyReferralStore, ReferralCode,
+    ReadonlyDappStore, ReadonlyReferralStore, ReferralCode, ReferrersQuery,
 };
 use referrals_core::{FallibleApi, Id};
 use referrals_cw::rewards_pot::{
@@ -509,6 +509,17 @@ where
     fn dapp_discrete_referrers(&self, dapp: &Id) -> Result<u64, Self::Error> {
         self.core_storage()
             .dapp_discrete_referrers(dapp)
+            .map_err(ApiError::from)
+    }
+}
+
+impl<'a, Store> ReferrersQuery for Api<'a, Hub, Store>
+where
+    Store: Storage,
+{
+    fn referral_code(&self, referrer: &Id) -> Result<Option<ReferralCode>, Self::Error> {
+        self.core_storage()
+            .referral_code(referrer)
             .map_err(ApiError::from)
     }
 }

@@ -16,7 +16,7 @@ use referrals_core::Id;
 
 use referrals_cw::rewards_pot::ExecuteMsg as PotExecuteMsg;
 use referrals_cw::rewards_pot::InstantiateResponse as PotInitResponse;
-use referrals_cw::{AllDappsResponse, DappResponse, QueryMsg as HubQueryMsg};
+use referrals_cw::{AllDappsResponse, DappResponse, QueryMsg as HubQueryMsg, ReferralCodeResponse};
 use referrals_cw::{ExecuteMsg as HubExecuteMsg, TotalDappsResponse};
 
 #[derive(Debug, thiserror::Error)]
@@ -135,6 +135,10 @@ pub fn parse_hub_query(api: &dyn Api, cw_msg: HubQueryMsg) -> Result<QueryReques
             QueryRequest::Dapp(id)
         }
         HubQueryMsg::AllDapps { start, limit } => QueryRequest::AllDapps { start, limit },
+        HubQueryMsg::RefferalCode { referrer } => {
+            let id = api.addr_validate(&referrer).map(Id::from)?;
+            QueryRequest::ReferralCode(id)
+        }
     };
 
     Ok(request)
@@ -164,6 +168,9 @@ pub fn convert_hub_query_response(response: QueryResponse) -> Result<Binary, Err
         QueryResponse::Dapp(dapp) => to_binary(&to_cw_dapp(dapp)),
         QueryResponse::AllDapps(dapps) => to_binary(&AllDappsResponse {
             dapps: dapps.into_iter().map(to_cw_dapp).collect(),
+        }),
+        QueryResponse::ReferralCode(code) => to_binary(&ReferralCodeResponse {
+            code: code.map_or(0, ReferralCode::to_u64),
         }),
     }
     .map_err(Error::from)

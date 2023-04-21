@@ -4,7 +4,7 @@ use crate::{FallibleApi, Id};
 
 use super::{
     CollectQuery, DappExternalQuery, Error, NonZeroPercent, ReadonlyDappStore,
-    ReadonlyReferralStore,
+    ReadonlyReferralStore, ReferralCode,
 };
 
 pub trait Dapps: FallibleApi {
@@ -52,6 +52,15 @@ pub trait Dapps: FallibleApi {
     fn dapp_discrete_referrers(&self, dapp: &Id) -> Result<u64, Self::Error>;
 }
 
+pub trait Referrers: FallibleApi {
+    /// `ReferralCode` registered to the `referrer`, if any.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the implementor encounters an error.
+    fn referral_code(&self, referrer: &Id) -> Result<Option<ReferralCode>, Self::Error>;
+}
+
 pub struct DappInfo {
     pub id: Id,
     pub active: bool,
@@ -72,12 +81,14 @@ pub enum Request {
         start: Option<u64>,
         limit: Option<u64>,
     },
+    ReferralCode(Id),
 }
 
 pub enum Response {
     TotalDappCount(u64),
     Dapp(DappInfo),
     AllDapps(Vec<DappInfo>),
+    ReferralCode(Option<ReferralCode>),
 }
 
 /// All the info for the dApp with the given `id`.
@@ -148,7 +159,12 @@ where
 /// This function will return an error if delegation of the message kind encounters an error.
 pub fn handle<Api>(api: &Api, request: Request) -> Result<Response, Error<Api::Error>>
 where
-    Api: ReadonlyDappStore + Dapps + DappExternalQuery + ReadonlyReferralStore + CollectQuery,
+    Api: Dapps
+        + ReadonlyDappStore
+        + DappExternalQuery
+        + Referrers
+        + ReadonlyReferralStore
+        + CollectQuery,
 {
     match request {
         Request::TotalDappCount => api
@@ -157,5 +173,9 @@ where
             .map_err(Error::from),
         Request::Dapp(id) => dapp_info(api, id).map(Response::Dapp),
         Request::AllDapps { start, limit } => all_dapps(api, start, limit).map(Response::AllDapps),
+        Request::ReferralCode(id) => api
+            .referral_code(&id)
+            .map(Response::ReferralCode)
+            .map_err(Error::from),
     }
 }
