@@ -1,4 +1,6 @@
-import { writable, readable } from 'svelte/store';
+import { writable } from 'svelte/store';
+
+import { asyncable } from 'svelte-asyncable';
 
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 
@@ -8,6 +10,6 @@ export const offlineSigner = writable(null);
 
 export const signingClient = writable(null);
 
-export const queryClient = readable(null, set => {
-  set(new CosmWasmClient(LocalnetInfo.rpc))
+export const queryClient = asyncable(async () => {
+  CosmWasmClient.connect(LocalnetInfo.rpc)
 });

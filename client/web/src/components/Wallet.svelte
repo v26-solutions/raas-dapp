@@ -1,5 +1,5 @@
 <script>
-  import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+  import { SigningCosmWasmClient, CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 
   import { LocalnetInfo } from "$lib/chain.local";
 
@@ -8,7 +8,29 @@
     signingClient as SigningClientStore,
   } from "$lib/client.store.js";
 
-  let promise = null;
+  import { account } from "$lib/account.store.js";
+
+  async function getAccountAsync(offlineSigner) {
+    const accounts = await offlineSigner.getAccounts();
+
+    const signingClient = new SigningCosmWasmClient(
+      LocalnetInfo.rpc,
+      accounts[0].address,
+      offlineSigner
+    );
+
+    return [accounts[0], signingClient];
+  }
+
+  function onAccountChange() {
+      console.log("account changed!");
+      getAccountAsync($OfflineSignerStore).then((res) => {
+        const [acc, client] = res;
+        SigningClientStore.set(client);
+        account.set(acc);
+        console.log(account, "connected!");
+      });
+  }
 
   async function connectAsync() {
     if (!window.keplr) {
@@ -25,48 +47,50 @@
 
     await window.keplr.enable(LocalnetInfo.chainId);
 
+    window.cosmwasmClient = CosmWasmClient;
+    
     const offlineSigner = window.getOfflineSigner(LocalnetInfo.chainId);
 
-    const accounts = await offlineSigner.getAccounts();
-
-    const signingClient = new SigningCosmWasmClient(
-      LocalnetInfo.rpc,
-      accounts[0].address,
-      offlineSigner
-    );
+    const [acc, signingClient] = await getAccountAsync(offlineSigner);
 
     OfflineSignerStore.set(offlineSigner);
     SigningClientStore.set(signingClient);
-  
-    return accounts[0].address;
+    account.set(acc);
+
+    console.log(account, "connected!");
+
+    window.addEventListener("keplr_keystorechange", onAccountChange);
   }
 
   function connect() {
     promise = connectAsync();
   }
+
+  function disconnect() {
+    window.removeEventListener("keplr_keystorechange", onAccountChange);
+    OfflineSignerStore.set(null);
+    SigningClientStore.set(null);
+    account.set(null);
+  }
 </script>
 
 <div>
-  {#await promise}
-    <p>Connecting...</p>
-  {:then address}
-    {#if address}
-      <p class="address">Connected: {address}</p>
-    {:else}
-      <button on:click={connect}> Connect </button>
-    {/if}
-  {:catch error}
-    <p class="error">{error.message}</p>
-    <button on:click={connect}> Retry </button>
-  {/await}
+  {#if $account}
+    <p class="address">Connected: {$account.address}</p>
+    <button on:click={disconnect}>Disconnect</button>
+  {:else}
+    <button on:click={connect}>Connect</button>
+  {/if}
 </div>
 
 <style>
-  .error {
-    color: #f00;
-  }
-
   .address {
+    float: left;
     color: #fff;
   }
+
+  button {
+    float: right
+  }
+  
 </style>
