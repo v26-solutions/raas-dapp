@@ -30,19 +30,8 @@ enum Command {
     },
     #[command(about = "install used cargo plugins (if not using Nix)")]
     Install,
-    #[command(subcommand, about = "web client tasks")]
-    WebClient(WebClient),
     #[command(subcommand, about = "archway deployment tasks")]
     Archway(Archway),
-}
-
-#[derive(Subcommand)]
-enum WebClient {
-    #[command(about = "start the development server")]
-    Dev {
-        #[arg(long, help = "expose server on 0.0.0.0")]
-        host: bool,
-    },
 }
 
 #[derive(Subcommand)]
@@ -52,7 +41,10 @@ enum Archway {
     #[command(about = "start a local node")]
     StartLocal,
     #[command(about = "deploy contracts to a local node")]
-    DeployLocal,
+    DeployLocal {
+        #[arg(long, short, help = "print all archwayd commands")]
+        verbose: bool,
+    },
     #[command(about = "remove local node directory")]
     Clean,
     #[command(about = "print mnemonics of all test accounts")]
@@ -72,20 +64,13 @@ pub fn main() -> Result<()> {
         Command::Dist => xtask::dist(&sh),
         Command::Dev { update } => xtask::dev(&sh, update),
         Command::Install => xtask::install(&sh),
-        Command::WebClient(cmd) => {
-            use xtask::web_client;
-
-            match cmd {
-                WebClient::Dev { host } => web_client::dev(&sh, host),
-            }
-        }
         Command::Archway(cmd) => {
             use xtask::archway;
 
             match cmd {
                 Archway::InitLocal => archway::init_local(&sh),
                 Archway::StartLocal => archway::start_local(&sh),
-                Archway::DeployLocal => archway::deploy_local(&sh),
+                Archway::DeployLocal { verbose } => archway::deploy_local(&sh, verbose),
                 Archway::Clean => archway::clean(&sh),
                 Archway::PrintMnemonics => archway::print_mnemonics(),
             }

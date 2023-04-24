@@ -70,50 +70,13 @@ pub fn artifacts_dir() -> String {
     dotenv::var("ARTIFACTS_DIR").unwrap_or_else(|_| "artifacts".to_owned())
 }
 
-pub fn update_or_insert_dotenv(sh: &Shell, key: &str, value: &str) -> Result<()> {
-    let envfile = sh.read_file(".env")?;
-
-    let updated: String = envfile
-        .lines()
-        .filter(|l| !l.starts_with(key))
-        .chain([format!("{key} = \"{value}\"").as_str()])
-        .map(|s| format!("{s}\n"))
-        .collect();
-
-    sh.write_file(".env", updated)?;
-
-    Ok(())
-}
-
-pub mod web_client {
-    use anyhow::Result;
-    use xshell::{cmd, Shell};
-
-    pub fn dev(sh: &Shell, expose_host: bool) -> Result<()> {
-        sh.change_dir("client/web");
-
-        let expose_host = expose_host.then_some("--host");
-
-        cmd!(sh, "npm run dev -- {expose_host...}")
-            .envs(dotenv::vars().filter_map(|(key, var)| match key.as_str() {
-                "AUTO_LAST_DEPLOY_REFERRALS_HUB_ADDRESS" => {
-                    Some(("PUBLIC_REFERRAL_HUB_ADDRESS", var))
-                }
-                "AUTO_LAST_DEPLOY_REFERRAL_CODE" => Some(("PUBLIC_REFERRAL_HUB_CODE", var)),
-                _ => None,
-            }))
-            .run()?;
-
-        Ok(())
-    }
-}
-
 pub mod archway {
     use std::{
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
         io::{BufRead, BufReader},
         path::PathBuf,
+        sync::atomic::{AtomicBool, Ordering},
         time,
     };
 
@@ -121,7 +84,7 @@ pub mod archway {
     use bip39::Mnemonic;
     use nanorand::{Rng, WyRand};
     use referrals_cw::{
-        AllDappsResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ReferralCodeResponse,
+        DappResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ReferralCodeResponse, WithReferralCode,
     };
     use serde::{de::DeserializeOwned, Serialize};
     use serde_json::{
@@ -129,10 +92,10 @@ pub mod archway {
     };
     use xshell::{cmd, Cmd, Shell};
 
-    use crate::update_or_insert_dotenv;
-
     pub const IMAGE_NAME: &str = "archwayd-xtask";
     pub const CONTAINER_NAME: &str = "local_archwayd_xtask";
+
+    static VERBOSE: AtomicBool = AtomicBool::new(false);
 
     pub fn archwayd_repo_url() -> String {
         dotenv::var("ARCHWAY_REPO_URL")
@@ -466,7 +429,37 @@ pub mod archway {
         Ok(cmd)
     }
 
+    pub fn account_balance(sh: &Shell, address: &str) -> Result<u128> {
+        let out = archwayd_node_cmd(sh)?
+            .args(["query", "bank", "balances", address, "--output", "json"])
+            .output()?;
+
+        if !out.status.success() {
+            let err = std::str::from_utf8(&out.stderr)?;
+            return Err(anyhow!("{err}"));
+        }
+
+        let json: JsonValue = from_json_bytes(&out.stdout)?;
+
+        let balance = json
+            .as_object()
+            .and_then(|o| o.get("balances"))
+            .and_then(JsonValue::as_array)
+            .and_then(|v| v.first())
+            .and_then(JsonValue::as_object)
+            .and_then(|o| o.get("amount"))
+            .and_then(JsonValue::as_str)
+            .ok_or_else(|| anyhow!("Expected at least one balance amount"))?
+            .parse()?;
+
+        Ok(balance)
+    }
+
     pub fn run_cmd(cmd: Cmd) -> Result<JsonValue> {
+        if VERBOSE.load(Ordering::Relaxed) {
+            eprintln!("$ {cmd}");
+        }
+
         let out = cmd.ignore_status().output()?;
 
         if !out.status.success() {
@@ -544,6 +537,24 @@ pub mod archway {
                     std::thread::sleep(time::Duration::from_secs(1));
                     continue;
                 };
+
+            let tx_query = json
+                .as_object()
+                .ok_or_else(|| anyhow!("expected json object"))?;
+
+            let status_code = tx_query
+                .get("code")
+                .and_then(JsonValue::as_u64)
+                .ok_or_else(|| anyhow!("expected status code"))?;
+
+            if status_code > 0 {
+                let err = tx_query
+                    .get("raw_log")
+                    .and_then(JsonValue::as_str)
+                    .ok_or_else(|| anyhow!("expected raw log"))?;
+
+                return Err(anyhow!("Tx failed: {err}"));
+            }
 
             return Ok(json);
         }
@@ -778,7 +789,9 @@ pub mod archway {
         Ok(res)
     }
 
-    pub fn deploy_local(sh: &Shell) -> Result<()> {
+    pub fn deploy_local(sh: &Shell, verbose: bool) -> Result<()> {
+        VERBOSE.store(verbose, Ordering::Relaxed);
+
         println!("Storing contracts...");
 
         let hub_code_id = store_contract(sh, "test_0", "/artifacts/archway_referrals_hub.wasm")?;
@@ -803,49 +816,155 @@ pub mod archway {
 
         println!("Referrals Hub Deployed at: {hub_addr}");
 
-        println!("Registering for referral code...");
+        let test_0_address = account_address(sh, "test_0")?;
+
+        println!("Referrals Hub Owner/Collector: {test_0_address}");
+
+        println!("Registering 1st referral code...");
 
         exec_contract(
             sh,
-            "test_0",
+            "test_1",
             &hub_addr,
             ExecuteMsg::RegisterReferrer {},
             Some(200_000),
             1000,
         )?;
 
-        let address = account_address(sh, "test_0")?;
+        let test_1_address = account_address(sh, "test_1")?;
 
-        let referral_code: ReferralCodeResponse = query_contract(
+        let test_1_referral_code: ReferralCodeResponse = query_contract(
             sh,
             &hub_addr,
             QueryMsg::RefferalCode {
-                referrer: address.clone(),
+                referrer: test_1_address.clone(),
             },
         )?;
 
-        println!(
-            "Referral Code Registered: {address} => {}",
-            referral_code.code
-        );
+        let test_1_referral_code = test_1_referral_code.code;
 
-        let all_dapps: AllDappsResponse = query_contract(
+        println!("Referral Code Registered: {test_1_address} => {test_1_referral_code}",);
+
+        println!("Registering 2nd referral code (referrer set to {test_1_referral_code})...",);
+
+        exec_contract(
+            sh,
+            "test_2",
+            &hub_addr,
+            WithReferralCode {
+                referral_code: Some(test_1_referral_code),
+                msg: ExecuteMsg::RegisterReferrer {},
+            },
+            Some(500_000),
+            1000,
+        )?;
+
+        let test_2_address = account_address(sh, "test_2")?;
+
+        let test_2_referral_code: ReferralCodeResponse = query_contract(
             sh,
             &hub_addr,
-            QueryMsg::AllDapps {
-                start: None,
-                limit: None,
+            QueryMsg::RefferalCode {
+                referrer: test_2_address.clone(),
             },
         )?;
 
-        println!("{all_dapps:#?}");
+        let test_2_referral_code = test_2_referral_code.code;
 
-        update_or_insert_dotenv(sh, "AUTO_LAST_DEPLOY_REFERRALS_HUB_ADDRESS", &hub_addr)?;
-        update_or_insert_dotenv(
+        println!("Referral Code Registered: {test_2_address} => {test_2_referral_code}");
+
+        let hub: DappResponse = query_contract(
             sh,
-            "AUTO_LAST_DEPLOY_REFERRAL_CODE",
-            &referral_code.code.to_string(),
+            &hub_addr,
+            QueryMsg::Dapp {
+                dapp: hub_addr.clone(),
+            },
         )?;
+
+        println!("Hub Status:");
+        println!("\tFee: {}", hub.fee.unwrap());
+        println!("\tFee Split Percent: {}%", hub.percent);
+        println!("\tTotal Invocations: {}", hub.total_invocations);
+        println!("\tDiscrete Referrers: {}", hub.discrete_referrers);
+        println!(
+            "\tTotal Contributions (to Referrers): {}",
+            hub.total_contributions
+        );
+        println!("\tTotal Rewards: {}", hub.total_rewards);
+
+        let test_1_balance = account_balance(sh, &test_1_address)?;
+
+        println!(
+            "{} (owner of referral code {}) balance: {}",
+            test_1_address, test_1_referral_code, test_1_balance
+        );
+
+        println!("Collecting earnings for code: {test_1_referral_code} (costs referrer 1000 in contract premium)...");
+
+        exec_contract(
+            sh,
+            "test_1",
+            &hub_addr,
+            ExecuteMsg::CollectReferrer {
+                code: test_1_referral_code,
+                dapp: hub_addr.clone(),
+            },
+            Some(500_000),
+            1000,
+        )?;
+
+        let test_1_balance = account_balance(sh, &test_1_address)?;
+
+        println!(
+            "{} (owner of referral code {}) balance: {}",
+            test_1_address, test_1_referral_code, test_1_balance
+        );
+
+        let test_0_balance = account_balance(sh, &test_0_address)?;
+
+        println!(
+            "{} (owner/collector of Referrals Hub) balance: {}",
+            test_0_address, test_0_balance
+        );
+
+        let hub: DappResponse = query_contract(
+            sh,
+            &hub_addr,
+            QueryMsg::Dapp {
+                dapp: hub_addr.clone(),
+            },
+        )?;
+
+        println!("Hub Status:");
+        println!("\tFee: {}", hub.fee.unwrap());
+        println!("\tFee Split Percent: {}%", hub.percent);
+        println!("\tTotal Invocations: {}", hub.total_invocations);
+        println!("\tDiscrete Referrers: {}", hub.discrete_referrers);
+        println!(
+            "\tTotal Contributions (to Referrers): {}",
+            hub.total_contributions
+        );
+        println!("\tTotal Rewards: {}", hub.total_rewards);
+
+        println!("Collecting earnings for Hub owner: {test_0_address} (costs dApp collector 1000 in contract premium)...");
+
+        exec_contract(
+            sh,
+            "test_0",
+            &hub_addr,
+            ExecuteMsg::CollectDapp {
+                dapp: hub_addr.clone(),
+            },
+            Some(500_000),
+            1000,
+        )?;
+
+        let test_0_balance = account_balance(sh, &test_0_address)?;
+
+        println!(
+            "{} (owner/collector of Referrals Hub) balance: {}",
+            test_0_address, test_0_balance
+        );
 
         Ok(())
     }
