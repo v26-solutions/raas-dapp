@@ -126,6 +126,7 @@ fn plumbing_works() {
         deps,
         "hub_owner",
         InstantiateMsg {
+            contract_premium: 1000u128.into(),
             rewards_pot_code_id: 1,
         }
     );
@@ -153,6 +154,17 @@ fn plumbing_works() {
                       name: "referrals_hub",
                       percent: 100,
                       collector: "hub_owner",
+                    ),
+                  )),
+                  reply_on: never,
+                ),
+                (
+                  id: 0,
+                  msg: Wasm(Execute(
+                    contract_addr: "referrals_hub",
+                    msg: set_dapp_fee(
+                      dapp: "referrals_hub",
+                      fee: "1000",
                     ),
                   )),
                   reply_on: never,
@@ -457,6 +469,7 @@ fn self_referral_forwarding_works() {
         deps,
         "hub_owner",
         InstantiateMsg {
+            contract_premium: 1000u128.into(),
             rewards_pot_code_id: 1,
         }
     );
@@ -495,5 +508,20 @@ fn self_referral_forwarding_works() {
               attributes: [],
               events: [],
             )"#]],
+    );
+
+    let res: ReferralCodeResponse = query_ok!(
+        deps,
+        QueryMsg::RefferalCode {
+            referrer: "another_referrer".to_owned()
+        }
+    );
+
+    check(
+        pretty(&res),
+        expect![[r#"
+        (
+          code: 2,
+        )"#]],
     );
 }
